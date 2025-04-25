@@ -1,13 +1,33 @@
-import { app, shell, BrowserWindow, ipcMain } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
+import fs from 'fs'
+import path from 'path'
+import os from 'os'
+import { homedir } from 'os'
+
+// Create the workspace directory if it doesn't exist
+function getWorkspacePath() {
+  const documentsPath = path.join(homedir(), 'Documents')
+  const workspacePath = path.join(documentsPath, 'Glintify Workspace')
+  
+  if (!fs.existsSync(workspacePath)) {
+    try {
+      fs.mkdirSync(workspacePath, { recursive: true })
+    } catch (error) {
+      console.error('Failed to create workspace directory:', error)
+    }
+  }
+  
+  return workspacePath
+}
 
 function createWindow(): void {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
-    width: 900,
-    height: 670,
+    width: 1200,
+    height: 800,
     show: false,
     autoHideMenuBar: true,
     ...(process.platform === 'linux' ? { icon } : {}),
@@ -49,8 +69,8 @@ app.whenReady().then(() => {
     optimizer.watchWindowShortcuts(window)
   })
 
-  // IPC test
-  ipcMain.on('ping', () => console.log('pong'))
+  // Set up IPC handlers
+  setupIpcHandlers()
 
   createWindow()
 
@@ -69,6 +89,70 @@ app.on('window-all-closed', () => {
     app.quit()
   }
 })
+
+// IPC handlers setup
+function setupIpcHandlers() {
+  // Open file dialog
+  ipcMain.handle('dialog:openFile', async () => {
+    const { canceled, filePaths } = await dialog.showOpenDialog({
+      properties: ['openFile'],
+      filters: [
+        { name: 'Excel Files', extensions: ['xlsx', 'xls'] }
+      ]
+    })
+    if (canceled) {
+      return null
+    }
+    return filePaths[0]
+  })
+
+  // Save file dialog
+  ipcMain.handle('dialog:saveFile', async (_, options) => {
+    const { defaultPath, filters } = options
+    const { canceled, filePath } = await dialog.showSaveDialog({
+      defaultPath,
+      filters
+    })
+    if (canceled) {
+      return null
+    }
+    return filePath
+  })
+
+  // Read Excel file info
+  ipcMain.handle('file:readExcelInfo', async (_, filePath) => {
+    return { filePath }
+  })
+
+  // Copy file
+  ipcMain.handle('file:copy', async (_, source, destination) => {
+    try {
+      await fs.promises.copyFile(source, destination)
+      return { success: true, destination }
+    } catch (error: unknown) {
+      console.error('File copy error:', error)
+      let errorMessage = 'Unknown error occurred'
+      
+      if (error instanceof Error) {
+        errorMessage = error.message
+      } else if (typeof error === 'string') {
+        errorMessage = error
+      }
+      
+      return { success: false, error: errorMessage }
+    }
+  })
+
+  // Open folder in explorer/finder
+  ipcMain.handle('shell:openFolder', (_, folderPath) => {
+    shell.openPath(folderPath)
+  })
+
+  // Get workspace path
+  ipcMain.handle('app:getWorkspacePath', () => {
+    return getWorkspacePath()
+  })
+}
 
 // In this file you can include the rest of your app's specific main process
 // code. You can also put them in separate files and require them here.

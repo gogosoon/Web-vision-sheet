@@ -1,37 +1,20 @@
-import Versions from './components/Versions'
-import electronLogo from './assets/electron.svg'
+import { useAppStore } from './lib/store'
+import HomeScreen from './screens/HomeScreen'
+import ProcessingScreen from './screens/ProcessingScreen'
+import ResultsScreen from './screens/ResultsScreen'
+import { Toaster } from 'react-hot-toast'
 
 function App(): React.JSX.Element {
-  const ipcHandle = (): void => window.electron.ipcRenderer.send('ping')
+  const currentScreen = useAppStore((state) => state.currentScreen)
 
   return (
-    <>
-      <img alt="logo" className="logo" src={electronLogo} />
-      <div className="creator">Powered by electron-vite</div>
-      <div className="text">
-        Build an Electron app with <span className="react">React</span>
-        &nbsp;and <span className="ts">TypeScript</span>
-      </div>
-      <p className="tip">
-        Please try pressing <code>F12</code> to open the devTool
-      </p>
-      <h1 className="text-3xl font-bold underline">
-        Hello world!
-      </h1>
-      <div className="actions">
-        <div className="action">
-          <a href="https://electron-vite.org/" target="_blank" rel="noreferrer">
-            Documentation
-          </a>
-        </div>
-        <div className="action">
-          <a target="_blank" rel="noreferrer" onClick={ipcHandle}>
-            Send IPC
-          </a>
-        </div>
-      </div>
-      <Versions></Versions>
-    </>
+    <div className="min-h-screen bg-gray-50">
+      {currentScreen === 'home' && <HomeScreen />}
+      {currentScreen === 'processing' && <ProcessingScreen />}
+      {currentScreen === 'results' && <ResultsScreen />}
+      
+      <Toaster position="top-right" />
+    </div>
   )
 }
 
