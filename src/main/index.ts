@@ -7,11 +7,28 @@ import path from 'path'
 import os from 'os'
 import { homedir } from 'os'
 
+// Import our main process services
+import { ExcelHandler } from './excelService'
+import { WebService } from './webService'
+import { AiService, AiPrompt } from './aiService'
+
+let mainWindow: BrowserWindow | null = null // Keep track of the main window
+let webServiceInstance: WebService | null = null // Keep track of WebService instance
+
+// Define the structure for the config file
+interface AppConfig {
+  originalFilePath: string
+  workspacePath: string
+  websiteColumnName: string
+  aiPrompts: AiPrompt[]
+  outputFileName?: string // Optional: specify output name
+}
+
 // Create the workspace directory if it doesn't exist
 function getWorkspacePath() {
   const documentsPath = path.join(homedir(), 'Documents')
   const workspacePath = path.join(documentsPath, 'Glintify Workspace')
-  
+
   if (!fs.existsSync(workspacePath)) {
     try {
       fs.mkdirSync(workspacePath, { recursive: true })
@@ -19,13 +36,13 @@ function getWorkspacePath() {
       console.error('Failed to create workspace directory:', error)
     }
   }
-  
+
   return workspacePath
 }
 
 function createWindow(): void {
   // Create the browser window.
-  const mainWindow = new BrowserWindow({
+  const newWindow = new BrowserWindow({
     width: 1200,
     height: 800,
     show: false,
@@ -37,8 +54,18 @@ function createWindow(): void {
     }
   })
 
+  mainWindow = newWindow // Assign once created
+
+  mainWindow.on('closed', () => {
+    mainWindow = null // Clear reference on close
+    // Ensure Puppeteer browser is closed if the window is closed
+    webServiceInstance
+      ?.closeBrowser()
+      .catch((err) => console.error('Failed to close browser on window close:', err))
+  })
+
   mainWindow.on('ready-to-show', () => {
-    mainWindow.show()
+    mainWindow?.show()
   })
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
@@ -69,6 +96,9 @@ app.whenReady().then(() => {
     optimizer.watchWindowShortcuts(window)
   })
 
+  // Create the singleton WebService instance
+  webServiceInstance = new WebService()
+
   // Set up IPC handlers
   setupIpcHandlers()
 
@@ -85,6 +115,10 @@ app.whenReady().then(() => {
 // for applications and their menu bar to stay active until the user quits
 // explicitly with Cmd + Q.
 app.on('window-all-closed', () => {
+  // Ensure Puppeteer browser is closed on quit
+  webServiceInstance
+    ?.closeBrowser()
+    .catch((err) => console.error('Failed to close browser on app quit:', err))
   if (process.platform !== 'darwin') {
     app.quit()
   }
@@ -96,9 +130,7 @@ function setupIpcHandlers() {
   ipcMain.handle('dialog:openFile', async () => {
     const { canceled, filePaths } = await dialog.showOpenDialog({
       properties: ['openFile'],
-      filters: [
-        { name: 'Excel Files', extensions: ['xlsx', 'xls'] }
-      ]
+      filters: [{ name: 'Excel Files', extensions: ['xlsx', 'xls'] }]
     })
     if (canceled) {
       return null
@@ -132,13 +164,13 @@ function setupIpcHandlers() {
     } catch (error: unknown) {
       console.error('File copy error:', error)
       let errorMessage = 'Unknown error occurred'
-      
+
       if (error instanceof Error) {
         errorMessage = error.message
       } else if (typeof error === 'string') {
         errorMessage = error
       }
-      
+
       return { success: false, error: errorMessage }
     }
   })
@@ -157,11 +189,11 @@ function setupIpcHandlers() {
   ipcMain.handle('path:join', (_, ...parts) => {
     return path.join(...parts)
   })
-  
+
   ipcMain.handle('path:basename', (_, filepath) => {
     return path.basename(filepath)
   })
-  
+
   ipcMain.handle('path:dirname', (_, filepath) => {
     return path.dirname(filepath)
   })
@@ -170,21 +202,31 @@ function setupIpcHandlers() {
   ipcMain.handle('workspace:create', async (_, workspaceName) => {
     try {
       const baseWorkspacePath = getWorkspacePath()
-      
+
       // Determine if the path should be treated as relative to the base workspace
       // or if it's an absolute path that should be created directly
       let projectWorkspacePath = workspaceName
-      
+
       // If it doesn't look like an absolute path, treat it as relative
-      if (!path.isAbsolute(workspaceName) && !workspaceName.includes('/') && !workspaceName.includes('\\')) {
+      // Updated check: Use path.isAbsolute and check common relative path starts
+      if (
+        !path.isAbsolute(workspaceName) &&
+        !workspaceName.startsWith('.') &&
+        !workspaceName.startsWith('/') &&
+        !workspaceName.includes(':\\')
+      ) {
         projectWorkspacePath = path.join(baseWorkspacePath, workspaceName)
+      } else if (workspaceName === '.') {
+        // Handle case where it's just the base path itself
+        projectWorkspacePath = baseWorkspacePath
       }
-      
+
+      console.log(`Attempting to create/ensure directory: ${projectWorkspacePath}`)
+
       // Create the workspace directory if it doesn't exist
-      if (!fs.existsSync(projectWorkspacePath)) {
-        fs.mkdirSync(projectWorkspacePath, { recursive: true })
-      }
-      
+      await fs.promises.mkdir(projectWorkspacePath, { recursive: true })
+      console.log(`Directory should now exist: ${projectWorkspacePath}`)
+
       return { success: true, path: projectWorkspacePath }
     } catch (error: unknown) {
       console.error('Failed to create workspace:', error)
@@ -195,12 +237,19 @@ function setupIpcHandlers() {
       return { success: false, error: errorMessage }
     }
   })
-  
-  // Save file to workspace
+
   ipcMain.handle('workspace:saveFile', async (_, workspacePath, fileName, content) => {
+    // Check if workspacePath is valid
+    if (!workspacePath || typeof workspacePath !== 'string') {
+      return { success: false, error: 'Invalid workspace path provided.' }
+    }
     try {
+      // Ensure the target directory exists
+      await fs.promises.mkdir(workspacePath, { recursive: true })
+
       const filePath = path.join(workspacePath, fileName)
-      
+      console.log(`Saving file to: ${filePath}`)
+
       if (typeof content === 'string') {
         // Save text content
         await fs.promises.writeFile(filePath, content, 'utf-8')
@@ -214,7 +263,7 @@ function setupIpcHandlers() {
         // Handle other objects by converting to JSON
         await fs.promises.writeFile(filePath, JSON.stringify(content), 'utf-8')
       }
-      
+
       return { success: true, path: filePath }
     } catch (error: unknown) {
       console.error('Failed to save file:', error)
@@ -225,18 +274,154 @@ function setupIpcHandlers() {
       return { success: false, error: errorMessage }
     }
   })
-  
+
+  // Read Excel file info (using moved service)
+  ipcMain.handle('excel:getFileInfo', async (_, filePath) => {
+    console.log(`IPC excel:getFileInfo called for path: ${filePath}`)
+    if (!filePath || typeof filePath !== 'string' || !fs.existsSync(filePath)) {
+      console.error('excel:getFileInfo - Invalid or non-existent file path provided:', filePath)
+      return { success: false, error: 'Invalid or non-existent file path provided.' }
+    }
+    try {
+      const info = await ExcelHandler.getFileInfo(filePath)
+      console.log('excel:getFileInfo - Info retrieved:', info)
+      return { success: true, data: info }
+    } catch (error: unknown) {
+      console.error('Error getting Excel file info:', error)
+      const message =
+        error instanceof Error ? error.message : 'Unknown error reading Excel file info'
+      return { success: false, error: message }
+    }
+  })
+
+  // Save configuration data
+  ipcMain.handle('config:save', async (_, configData: AppConfig) => {
+    if (!configData || !configData.workspacePath) {
+      return { success: false, error: 'Invalid configuration data or missing workspace path.' }
+    }
+    const configFilePath = path.join(configData.workspacePath, 'config.json')
+    console.log(`Saving configuration to: ${configFilePath}`)
+    try {
+      await fs.promises.writeFile(configFilePath, JSON.stringify(configData, null, 2), 'utf-8')
+      return { success: true, path: configFilePath }
+    } catch (error: unknown) {
+      console.error('Error saving config file:', error)
+      const message = error instanceof Error ? error.message : 'Unknown error saving config file'
+      return { success: false, error: message }
+    }
+  })
+
+  // Start the main processing job
+  ipcMain.on('processing:start', async () => {
+    console.log('IPC processing:start received')
+    const currentMainWindow = mainWindow
+    if (!currentMainWindow) {
+      console.error('Processing start request received but mainWindow is not available.')
+      // Optionally send an error back to renderer if needed
+      return
+    }
+
+    // Find the most recent workspace directory
+    let latestWorkspacePath: string | null = null
+    try {
+      const baseWorkspace = getWorkspacePath()
+      const directories = await fs.promises.readdir(baseWorkspace, { withFileTypes: true })
+      const workspaceDirs = directories
+        .filter((dirent) => dirent.isDirectory() && dirent.name.startsWith('workspace-'))
+        .map((dirent) => path.join(baseWorkspace, dirent.name))
+
+      if (workspaceDirs.length > 0) {
+        // Find the most recently modified workspace
+        let latestTime = 0
+        for (const dirPath of workspaceDirs) {
+          const stats = await fs.promises.stat(dirPath)
+          if (stats.mtimeMs > latestTime) {
+            latestTime = stats.mtimeMs
+            latestWorkspacePath = dirPath
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Error finding latest workspace:', err)
+      currentMainWindow.webContents.send('processingError', 'Error finding workspace directory.')
+      return
+    }
+
+    if (!latestWorkspacePath) {
+      console.error('No workspace found to process.')
+      currentMainWindow.webContents.send(
+        'processingError',
+        'Could not find a workspace directory to process.'
+      )
+      return
+    }
+
+    const configFilePath = path.join(latestWorkspacePath, 'config.json')
+    console.log(`Attempting to read config from: ${configFilePath}`)
+
+    try {
+      const configDataStr = await fs.promises.readFile(configFilePath, 'utf-8')
+      const config: AppConfig = JSON.parse(configDataStr)
+
+      // Create instances of services
+      const excelHandler = new ExcelHandler(currentMainWindow) // Pass window for progress updates
+      const aiService = new AiService() // Reads config from env vars
+      // webServiceInstance is already created and managed globally
+      if (!webServiceInstance) {
+        throw new Error('WebService instance not available')
+      }
+
+      // Define paths
+      const screenshotsDir = path.join(config.workspacePath, 'screenshots')
+      await fs.promises.mkdir(screenshotsDir, { recursive: true }) // Ensure screenshot dir exists
+
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+      const inputFileName = path.basename(config.originalFilePath)
+      const outputFileName = config.outputFileName || `enriched-${timestamp}-${inputFileName}`
+      const outputFilePath = path.join(config.workspacePath, outputFileName)
+
+      console.log(`Starting file processing:`)
+      console.log(`  Input: ${config.originalFilePath}`)
+      console.log(`  Output: ${outputFilePath}`)
+      console.log(`  Screenshots: ${screenshotsDir}`)
+      console.log(`  Website Column: ${config.websiteColumnName}`)
+
+      // Start processing
+      await excelHandler.processFile(
+        config.originalFilePath,
+        config.websiteColumnName,
+        config.aiPrompts,
+        outputFilePath,
+        screenshotsDir,
+        webServiceInstance, // Use shared instance
+        aiService
+      )
+
+      console.log('Processing finished successfully.')
+      // Send completion message
+      currentMainWindow.webContents.send('processingComplete', { outputPath: outputFilePath })
+    } catch (error: unknown) {
+      console.error('Error during processing:', error)
+      const message = error instanceof Error ? error.message : 'Unknown processing error'
+      // Send error message to renderer
+      currentMainWindow.webContents.send('processingError', message)
+    } finally {
+      // Optional: Close browser after processing is fully complete?
+      // await webServiceInstance?.closeBrowser();
+    }
+  })
+
   // Launch browser
   ipcMain.handle('browser:launch', async () => {
     try {
       const { exec } = require('child_process')
       const userDataDir = path.join(app.getPath('userData'), 'puppeteer_profile')
-      
+
       // Create user data directory if it doesn't exist
       if (!fs.existsSync(userDataDir)) {
         fs.mkdirSync(userDataDir, { recursive: true })
       }
-      
+
       // Determine the command to launch Chrome with the profile
       let command
       if (process.platform === 'win32') {
@@ -246,14 +431,14 @@ function setupIpcHandlers() {
       } else {
         command = `google-chrome --user-data-dir="${userDataDir}"`
       }
-      
+
       exec(command, (error) => {
         if (error) {
           console.error('Failed to launch browser:', error)
           return { success: false, error: error.message }
         }
       })
-      
+
       return { success: true, profilePath: userDataDir }
     } catch (error: unknown) {
       console.error('Failed to launch browser:', error)

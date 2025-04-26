@@ -8,6 +8,7 @@ export interface AiPrompt {
 interface ExcelFile {
   fileName: string
   filePath: string
+  workspacePath: string | null
   sheetNames: string[]
   selectedSheet: string
   websiteColumn: string | null
@@ -17,7 +18,7 @@ interface ExcelFile {
 }
 
 export interface ProcessingStats {
-  currentStep: 'idle' | 'taking-screenshots' | 'processing-screenshots' | 'saving-results' | 'completed' | 'error'
+  currentStep: 'idle' | 'starting' | 'taking-screenshots' | 'processing-screenshots' | 'saving-results' | 'completed' | 'error'
   currentRowIndex: number
   totalRows: number
   currentLogMessage: string
@@ -38,10 +39,10 @@ interface AppState {
   setCurrentScreen: (screen: 'home' | 'processing' | 'results') => void
   setExcelFile: (file: ExcelFile | null) => void
   updateExcelFile: (partialFile: Partial<ExcelFile>) => void
-  updateProcessingStats: (stats: Partial<ProcessingStats>) => void
+  updateProcessingStats: (stats: Partial<ProcessingStats> | ((prevStats: ProcessingStats) => Partial<ProcessingStats>)) => void
   addAiPrompt: (prompt: AiPrompt) => void
-  removeAiPrompt: (index: number) => void
-  updateAiPrompt: (index: number, prompt: Partial<AiPrompt>) => void
+  removeAiPrompt: (columnName: string) => void
+  updateAiPrompt: (columnName: string, prompt: Partial<AiPrompt>) => void
   resetState: () => void
 }
 
@@ -65,16 +66,21 @@ export const useAppStore = create<AppState>((set, get) => ({
   // Actions
   setCurrentScreen: (screen) => set({ currentScreen: screen }),
   
-  setExcelFile: (file) => set({ excelFile: file }),
+  setExcelFile: (file) => set({ 
+      excelFile: file, 
+      processingStats: defaultProcessingStats 
+  }),
   
   updateExcelFile: (partialFile) => 
     set((state) => ({
       excelFile: state.excelFile ? { ...state.excelFile, ...partialFile } : null
     })),
   
-  updateProcessingStats: (stats) => 
+  updateProcessingStats: (statsUpdate) => 
     set((state) => ({
-      processingStats: { ...state.processingStats, ...stats }
+      processingStats: typeof statsUpdate === 'function' 
+        ? { ...state.processingStats, ...statsUpdate(state.processingStats) } 
+        : { ...state.processingStats, ...statsUpdate }
     })),
   
   addAiPrompt: (prompt) => 
@@ -87,23 +93,23 @@ export const useAppStore = create<AppState>((set, get) => ({
         : null
     })),
   
-  removeAiPrompt: (index) => 
+  removeAiPrompt: (columnName) => 
     set((state) => ({
       excelFile: state.excelFile 
         ? { 
             ...state.excelFile, 
-            aiPrompts: state.excelFile.aiPrompts.filter((_, i) => i !== index) 
+            aiPrompts: state.excelFile.aiPrompts.filter((p) => p.columnName !== columnName) 
           } 
         : null
     })),
   
-  updateAiPrompt: (index, prompt) => 
+  updateAiPrompt: (columnName, promptUpdate) => 
     set((state) => ({
       excelFile: state.excelFile 
         ? { 
             ...state.excelFile, 
-            aiPrompts: state.excelFile.aiPrompts.map((p, i) => 
-              i === index ? { ...p, ...prompt } : p
+            aiPrompts: state.excelFile.aiPrompts.map((p) => 
+              p.columnName === columnName ? { ...p, ...promptUpdate } : p
             ) 
           } 
         : null
