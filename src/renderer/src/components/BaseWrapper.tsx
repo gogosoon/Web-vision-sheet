@@ -9,26 +9,26 @@ interface BaseWrapperProps {
 const BaseWrapper: React.FC<BaseWrapperProps> = ({ children }) => {
     const { currentScreen, auth } = useAppStore()
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col min-h-screen bg-gray-50">
       {/* Header */}
-      <header className="p-4 border-b border-gray-700 flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-indigo-400">Glintify.io</h1>
-        {auth.authenticated && (
-        <div className="h-12 bg-white border-b border-gray-200 flex items-center justify-end px-4 flex-shrink-0">
-          <UserProfile />
+      <header className="py-3 px-6 bg-white shadow-sm flex justify-between items-center border-b border-gray-200">
+        <div className="flex items-center">
+          <h1 className="text-xl font-bold text-indigo-600">Glintify.io</h1>
+          <span className="ml-2 text-xs px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full">Desktop</span>
         </div>
-      )}
-        {/* Potentially add user profile/logout button here if needed */}
+        {auth.authenticated && (
+          <UserProfile />
+        )}
       </header>
 
       {/* Main Content Area */}
-      <main className="flex-grow p-6 flex flex-col items-center justify-center">
+      <main className="flex-grow px-6 py-8 flex flex-col items-center justify-center">
         {children}
       </main>
 
       {/* Footer */}
-      <footer className="p-4 text-center text-sm text-gray-400 border-t border-gray-700">
-        © {new Date().getFullYear()} Glintify.io. All rights reserved.
+      <footer className="py-2 px-6 text-center text-xs text-gray-500 border-t border-gray-200 bg-white">
+        © {new Date().getFullYear()} Glintify.io
       </footer>
     </div>
   );

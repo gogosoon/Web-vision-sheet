@@ -215,7 +215,7 @@ const HomeScreen: React.FC = () => {
 
   return (
     <BaseWrapper>
-      <div className="w-full max-w-4xl mx-auto p-6 rounded-lg shadow-lg bg-white text-gray-800">
+      <div className="w-full max-w-4xl mx-auto">
         {/* Browser launch button - Kept here as it seems specific to this screen */}
         <div className="mb-6 text-center">
           <Button
@@ -228,6 +228,16 @@ const HomeScreen: React.FC = () => {
             Open Browser for Login (if needed)
           </Button>
            <p className="text-xs text-slate-500 mt-1">Some websites might require you to be logged in. Open the browser to log in first.</p>
+        </div>
+
+        {/* Line separator */}
+        <div className="relative my-6">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-gray-200"></div>
+          </div>
+          <div className="relative flex justify-center text-sm">
+            <span className="px-3 bg-white text-gray-500">Excel File Configuration</span>
+          </div>
         </div>
 
         {/* --- Initial Upload Step --- */}
@@ -288,9 +298,20 @@ const HomeScreen: React.FC = () => {
                 </div>
               </div>
 
-              <label htmlFor="websiteColumn" className="block text-sm font-medium text-gray-700 mb-2">
-                Column containing website URLs:
-              </label>
+              <div className="flex items-center justify-between mb-4">
+                <label htmlFor="websiteColumn" className="block text-sm font-medium text-gray-700">
+                  Column containing website URLs:
+                </label>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setUploadStep('initial')}
+                  className="text-xs flex items-center gap-1"
+                >
+                  <FileSpreadsheet size={14} />
+                  Select Different File
+                </Button>
+              </div>
               <select
                 id="websiteColumn"
                 value={excelFile.websiteColumn || ''}

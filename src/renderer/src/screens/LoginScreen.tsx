@@ -36,9 +36,9 @@ const LoginScreen = () => {
   
   return (
     <BaseWrapper>
-      <div className="bg-white p-8 rounded-lg shadow-md max-w-md w-full text-gray-800">
+      <div className="bg-white p-8 rounded-lg shadow-sm border border-gray-200 max-w-md w-full text-gray-800">
         <div className="text-center mb-6">
-          <h1 className="text-2xl font-bold">Glintify</h1>
+          <h1 className="text-2xl font-bold text-indigo-600">Glintify</h1>
           <p className="text-gray-600 mt-2">Sign in to continue</p>
         </div>
         
@@ -52,7 +52,7 @@ const LoginScreen = () => {
           <button
             onClick={handleBrowserLogin}
             disabled={auth.isLoading}
-            className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            className="w-full py-2 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
             {auth.isLoading ? 'Logging in...' : 'Login / Register'}
           </button>
