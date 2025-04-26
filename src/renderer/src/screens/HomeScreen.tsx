@@ -191,6 +191,9 @@ const HomeScreen: React.FC = () => {
 
       if (saveResult.success) {
         toast.success('Configuration saved. Starting processing...', { id: 'config-toast' });
+        // Trigger the main process to start
+        window.api.processing.start();
+
         setCurrentScreen('processing');
       } else {
         throw new Error(saveResult.error || 'Failed to save configuration.');

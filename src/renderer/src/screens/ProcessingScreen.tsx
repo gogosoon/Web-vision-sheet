@@ -124,10 +124,7 @@ const ProcessingScreen: React.FC = () => {
     const cleanupProgress = window.api.processing.onProgress(handleProgress);
     const cleanupComplete = window.api.processing.onComplete(handleComplete);
     const cleanupError = window.api.processing.onError(handleError);
-
-    // Trigger the main process to start
-    window.api.processing.start();
-
+    
     // Cleanup function
     return () => {
       isMounted = false;
