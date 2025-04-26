@@ -51,9 +51,9 @@ const LoginScreen = () => {
           <button
             onClick={handleBrowserLogin}
             disabled={auth.isLoading}
-            className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
-            {auth.isLoading ? 'Logging in...' : 'Login via Browser'}
+            {auth.isLoading ? 'Logging in...' : 'Login / Register'}
           </button>
           
           <div className="relative my-4">
@@ -76,12 +76,17 @@ const LoginScreen = () => {
               className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               disabled={auth.isLoading}
             />
+            <p className="text-xs text-gray-500 mt-2">
+              Please visit <a href="#" onClick={() => window.open(DESKTOP_LOGIN_URL, '_blank')} className="text-blue-500 underline cursor-pointer">
+                {DESKTOP_LOGIN_URL.replace(/^https?:\/\//, '')}
+              </a> to get your app token
+            </p>
           </div>
           
           <button
             onClick={handleManualLogin}
             disabled={auth.isLoading || !manualToken.trim()}
-            className="w-full py-2 px-4 bg-gray-800 hover:bg-gray-900 text-white font-medium rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full py-2 px-4 bg-gray-800 hover:bg-gray-900 text-white font-medium rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
             {auth.isLoading ? 'Logging in...' : 'Login with Token'}
           </button>

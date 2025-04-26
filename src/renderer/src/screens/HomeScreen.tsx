@@ -215,7 +215,7 @@ const HomeScreen: React.FC = () => {
   return (
     <div className="flex flex-col min-h-screen p-8 gap-6 bg-gray-50">
       <header className="text-center mb-6">
-        <h1 className="text-4xl font-bold mb-2 text-gray-800">Glintify AI Workspace</h1>
+        <h1 className="text-4xl font-bold mb-2 text-gray-800">Glintify.io</h1>
         <p className="text-xl text-slate-600">Enrich your Excel data with AI and website insights.</p>
 
         {/* Browser launch button - Keep existing logic */}
@@ -224,7 +224,7 @@ const HomeScreen: React.FC = () => {
             variant="outline"
             onClick={handleLaunchBrowser}
             disabled={loading}
-            className="flex items-center gap-2 mx-auto bg-white"
+            className="flex items-center gap-2 mx-auto bg-white cursor-pointer"
           >
             <Chrome size={18} />
             Open Browser for Login (if needed)

@@ -28,16 +28,16 @@ function App(): React.JSX.Element {
   }, [auth.token])
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="h-screen flex flex-col bg-gray-50 overflow-hidden">
       {/* Top bar with user profile */}
+      
+      {/* Main content */}
+      <div className={`flex-1 overflow-auto ${auth.authenticated ? '' : ''}`}>
       {auth.authenticated && (
-        <div className="w-full h-12 bg-white border-b border-gray-200 flex items-center justify-end px-4">
+        <div className="w-full h-12 bg-white border-b border-gray-200 flex items-center justify-end px-4 flex-shrink-0">
           <UserProfile />
         </div>
       )}
-      
-      {/* Main content */}
-      <div className={auth.authenticated ? 'pt-4' : ''}>
         {currentScreen === 'login' && <LoginScreen />}
         {currentScreen === 'home' && <HomeScreen />}
         {currentScreen === 'processing' && <ProcessingScreen />}
