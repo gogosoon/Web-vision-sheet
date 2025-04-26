@@ -16,6 +16,32 @@ const api = {
   },
   app: {
     getWorkspacePath: () => ipcRenderer.invoke('app:getWorkspacePath')
+  },
+  path: {
+    join: (...args) => ipcRenderer.invoke('path:join', ...args),
+    basename: (filePath) => ipcRenderer.invoke('path:basename', filePath),
+    dirname: (filePath) => ipcRenderer.invoke('path:dirname', filePath)
+  },
+  workspace: {
+    create: (workspaceName) => ipcRenderer.invoke('workspace:create', workspaceName),
+    saveFile: (workspacePath, fileName, content) => {
+      // Handle different content types
+      if (typeof content === 'string') {
+        return ipcRenderer.invoke('workspace:saveFile', workspacePath, fileName, content)
+      } else if (content instanceof Uint8Array) {
+        // Uint8Array can be passed directly through IPC
+        return ipcRenderer.invoke('workspace:saveFile', workspacePath, fileName, content)
+      } else if (ArrayBuffer.isView(content)) {
+        // Convert other typed arrays to Uint8Array
+        return ipcRenderer.invoke('workspace:saveFile', workspacePath, fileName, new Uint8Array(content.buffer))
+      } else {
+        // For objects, stringify them
+        return ipcRenderer.invoke('workspace:saveFile', workspacePath, fileName, JSON.stringify(content))
+      }
+    }
+  },
+  browser: {
+    launch: () => ipcRenderer.invoke('browser:launch')
   }
 }
 

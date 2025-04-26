@@ -18,6 +18,19 @@ declare global {
       app: {
         getWorkspacePath: () => Promise<string>
       }
+      path: {
+        join: (...parts: string[]) => Promise<string>
+        basename: (filepath: string) => Promise<string>
+        dirname: (filepath: string) => Promise<string>
+      }
+      workspace: {
+        create: (workspaceName: string) => Promise<{ success: boolean, path?: string, error?: string }>
+        saveFile: (workspacePath: string, fileName: string, content: string | Uint8Array | ArrayBufferView | object) => 
+          Promise<{ success: boolean, path?: string, error?: string }>
+      }
+      browser: {
+        launch: () => Promise<{ success: boolean, profilePath?: string, error?: string }>
+      }
     }
   }
 }

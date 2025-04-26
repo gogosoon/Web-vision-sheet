@@ -2,22 +2,100 @@ import React, { useState, useCallback } from 'react'
 import { useDropzone } from 'react-dropzone'
 import { useAppStore } from '@/lib/store'
 import { Button } from '@/components/button'
-import { Upload, FileSpreadsheet, Info, PlusCircle, X } from 'lucide-react'
+import { Upload, FileSpreadsheet, Info, PlusCircle, X, Chrome } from 'lucide-react'
 import * as Excel from 'exceljs'
-import path from 'path'
+import { toast } from 'react-hot-toast'
 
 const HomeScreen: React.FC = () => {
   const { setExcelFile, setCurrentScreen, updateExcelFile, addAiPrompt } = useAppStore()
   const [uploadStep, setUploadStep] = useState<'initial' | 'column-selection' | 'ai-prompts'>('initial')
   const [error, setError] = useState<string | null>(null)
   const [newPrompt, setNewPrompt] = useState({ columnName: '', prompt: '' })
+  const [loading, setLoading] = useState<boolean>(false)
   const excelFile = useAppStore((state) => state.excelFile)
+
+  const createWorkspace = async (file: File): Promise<string> => {
+    try {
+      // Create a timestamped workspace name
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+      const workspaceName = `workspace-${timestamp}`
+      
+      // Create the workspace directory
+      const result = await window.api.workspace.create(workspaceName)
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to create workspace directory')
+      }
+      
+      // Read the file as an array buffer
+      const arrayBuffer = await file.arrayBuffer()
+      
+      // Convert ArrayBuffer to Uint8Array which can be safely passed through IPC
+      const uint8Array = new Uint8Array(arrayBuffer)
+      
+      // Save the original file to the workspace
+      const saveResult = await window.api.workspace.saveFile(
+        result.path!,
+        'input.xlsx',
+        uint8Array
+      )
+      
+      if (!saveResult.success) {
+        throw new Error(saveResult.error || 'Failed to save file to workspace')
+      }
+      
+      // Save initial metadata
+      const metadata = {
+        originalFileName: file.name,
+        uploadTime: new Date().toISOString(),
+        workspacePath: result.path
+      }
+      
+      // Save metadata as JSON
+      await window.api.workspace.saveFile(
+        result.path!,
+        'data.json',
+        JSON.stringify(metadata, null, 2)
+      )
+      
+      return saveResult.path!
+    } catch (error: unknown) {
+      console.error('Error creating workspace:', error)
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      toast.error(`Failed to create workspace: ${errorMessage}`)
+      throw error
+    }
+  }
+
+  const handleLaunchBrowser = async () => {
+    try {
+      setLoading(true)
+      const result = await window.api.browser.launch()
+      
+      if (result.success) {
+        toast.success('Browser launched successfully')
+      } else {
+        toast.error(`Failed to launch browser: ${result.error}`)
+      }
+    } catch (error: unknown) {
+      console.error('Error launching browser:', error)
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      toast.error(`Failed to launch browser: ${errorMessage}`)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     const file = acceptedFiles[0]
     if (!file) return
 
     try {
+      setLoading(true)
+      
+      // Create workspace and save file
+      const workspaceFilePath = await createWorkspace(file)
+      
       // Read the file using ExcelJS
       const workbook = new Excel.Workbook()
       const arrayBuffer = await file.arrayBuffer()
@@ -37,9 +115,10 @@ const HomeScreen: React.FC = () => {
       // Count total rows (excluding header)
       const totalRows = firstSheet.rowCount - 1
 
+      // Set the Excel file with the workspace file path
       setExcelFile({
         fileName: file.name,
-        filePath: file.path,
+        filePath: workspaceFilePath,
         sheetNames,
         selectedSheet: sheetNames[0],
         websiteColumn: null,
@@ -50,6 +129,7 @@ const HomeScreen: React.FC = () => {
 
       setUploadStep('column-selection')
       setError(null)
+      toast.success('File uploaded and workspace created')
     } catch (err: unknown) {
       console.error(err)
       let errorMessage = 'Failed to read Excel file. Please make sure it is a valid .xlsx file.'
@@ -59,6 +139,9 @@ const HomeScreen: React.FC = () => {
       }
       
       setError(errorMessage)
+      toast.error(errorMessage)
+    } finally {
+      setLoading(false)
     }
   }, [setExcelFile])
 
@@ -68,7 +151,8 @@ const HomeScreen: React.FC = () => {
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
       'application/vnd.ms-excel': ['.xls']
     },
-    maxFiles: 1
+    maxFiles: 1,
+    disabled: loading
   })
 
   const handleWebsiteColumnSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -95,6 +179,19 @@ const HomeScreen: React.FC = () => {
       <header className="text-center mb-6">
         <h1 className="text-4xl font-bold mb-2">Glintify AI Workspace</h1>
         <p className="text-xl text-slate-500">Enrich your Excel data with AI and website insights.</p>
+        
+        {/* Browser launch button */}
+        <div className="mt-4">
+          <Button 
+            variant="outline" 
+            onClick={handleLaunchBrowser}
+            disabled={loading}
+            className="flex items-center gap-2"
+          >
+            <Chrome size={18} />
+            Open Browser
+          </Button>
+        </div>
       </header>
 
       {uploadStep === 'initial' && (
@@ -106,17 +203,23 @@ const HomeScreen: React.FC = () => {
               flex flex-col items-center justify-center space-y-4 cursor-pointer
               transition-colors duration-200
               ${isDragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-blue-400'}
+              ${loading ? 'opacity-50 cursor-not-allowed' : ''}
             `}
           >
             <input {...getInputProps()} />
             <FileSpreadsheet size={64} className="text-slate-400" />
             <div className="text-center">
               <p className="text-lg font-medium mb-2">
-                {isDragActive ? 'Drop the Excel file here' : 'Drag & drop an Excel file here, or click to browse'}
+                {isDragActive 
+                  ? 'Drop the Excel file here' 
+                  : loading 
+                    ? 'Processing...' 
+                    : 'Drag & drop an Excel file here, or click to browse'
+                }
               </p>
               <p className="text-sm text-slate-500">Supports .xlsx and .xls files</p>
             </div>
-            <Button variant="default" className="mt-4" onClick={(e) => e.stopPropagation()}>
+            <Button variant="default" className="mt-4" onClick={(e) => e.stopPropagation()} disabled={loading}>
               <Upload size={18} className="mr-2" /> Upload Excel File
             </Button>
           </div>

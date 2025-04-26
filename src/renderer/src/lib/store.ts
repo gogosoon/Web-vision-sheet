@@ -1,7 +1,4 @@
 import { create } from 'zustand'
-import * as fs from 'fs'
-import * as path from 'path'
-import * as os from 'os'
 
 export interface AiPrompt {
   columnName: string
@@ -46,7 +43,6 @@ interface AppState {
   removeAiPrompt: (index: number) => void
   updateAiPrompt: (index: number, prompt: Partial<AiPrompt>) => void
   resetState: () => void
-  getWorkspacePath: () => string
 }
 
 // Default processing stats
@@ -117,21 +113,5 @@ export const useAppStore = create<AppState>((set, get) => ({
     currentScreen: 'home',
     excelFile: null,
     processingStats: defaultProcessingStats
-  }),
-  
-  getWorkspacePath: () => {
-    const documentsPath = path.join(os.homedir(), 'Documents')
-    const workspacePath = path.join(documentsPath, 'Glintify Workspace')
-    
-    // Ensure the workspace directory exists
-    if (!fs.existsSync(workspacePath)) {
-      try {
-        fs.mkdirSync(workspacePath, { recursive: true })
-      } catch (error) {
-        console.error('Failed to create workspace directory:', error)
-      }
-    }
-    
-    return workspacePath
-  }
+  })
 })) 

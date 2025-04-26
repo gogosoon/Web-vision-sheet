@@ -3,30 +3,18 @@ import { useAppStore } from '@/lib/store'
 import { Button } from '@/components/button'
 import { Terminal, ChevronDown, ChevronUp } from 'lucide-react'
 import { ExcelService } from '@/lib/excelService'
-import { WebService } from '@/lib/webService'
-import { AiService } from '@/lib/aiService'
-import path from 'path'
-import * as fs from 'fs'
+import { toast } from 'react-hot-toast'
+import type { ProcessingStats } from '@/lib/store'
 
 // The actual processing function that combines all our services
 const processExcelFile = async (
-  updateStats: (stats: any) => void, 
+  updateStats: (stats: Partial<ProcessingStats> | ((prevStats: ProcessingStats) => Partial<ProcessingStats>)) => void, 
   excelFilePath: string,
   websiteColumnName: string,
   aiPrompts: Array<{ columnName: string, prompt: string }>,
   workspacePath: string
 ) => {
   try {
-    // Create directories for screenshots and output
-    const screenshotsDir = path.join(workspacePath, 'screenshots')
-    if (!fs.existsSync(screenshotsDir)) {
-      fs.mkdirSync(screenshotsDir, { recursive: true })
-    }
-    
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
-    const fileName = path.basename(excelFilePath)
-    const outputFilePath = path.join(workspacePath, `enriched-${timestamp}-${fileName}`)
-    
     // Step 1: Initialize processing
     updateStats({ 
       currentStep: 'taking-screenshots',
@@ -34,86 +22,86 @@ const processExcelFile = async (
       logs: ['Starting to process Excel file...']
     })
     
-    // In a real app, this would use ExcelService to process the file
-    // But for now, we'll just simulate the steps
+    // Create screenshot directory
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+    const screenshotsDirName = 'screenshots'
+    const screenshotsDir = await window.api.path.join(workspacePath, screenshotsDirName)
     
-    // Step 2: Take screenshots for each row
-    // (Mocked - would use WebService in a real app)
-    updateStats({ 
-      currentStep: 'taking-screenshots',
-      currentLogMessage: 'Taking screenshots of websites...'
-    })
+    // Create the screenshots directory within the workspace
+    const screenshotsDirPath = await window.api.path.join(workspacePath, screenshotsDirName)
+    const screenshotsDirResult = await window.api.workspace.create(screenshotsDirPath)
     
-    // Simulate processing rows
-    for (let i = 0; i < 10; i++) {
-      updateStats({ 
-        currentRowIndex: i,
-        currentLogMessage: `Taking screenshot for row ${i+1}...`
-      })
-      
-      // Add log entry
-      updateStats((prevStats) => ({
-        logs: [...prevStats.logs, `Taking screenshot for row ${i+1}...`]
-      }))
-      
-      // Simulate delay
-      await new Promise(resolve => setTimeout(resolve, 500))
+    if (!screenshotsDirResult.success) {
+      console.warn(`Warning: Failed to create screenshots directory: ${screenshotsDirResult.error}`)
+      // Continue anyway as we'll use the path
     }
     
-    // Step 3: Process screenshots with AI
-    updateStats({ 
-      currentStep: 'processing-screenshots',
-      currentRowIndex: 0,
-      currentLogMessage: 'Processing screenshots with AI...',
-    })
+    // Get base filename
+    const fileName = await window.api.path.basename(excelFilePath)
+    const outputFilePath = await window.api.path.join(
+      workspacePath, 
+      `enriched-${timestamp}-${fileName}`
+    )
     
-    updateStats((prevStats) => ({
-      logs: [...prevStats.logs, 'Processing screenshots with AI...']
-    }))
-    
-    for (let i = 0; i < 10; i++) {
-      updateStats({ 
-        currentRowIndex: i,
-        currentLogMessage: `Processing AI analysis for row ${i+1}...`
-      })
-      
-      // Add log entry for each prompt
-      aiPrompts.forEach(prompt => {
-        updateStats((prevStats) => ({
-          logs: [...prevStats.logs, `Applying prompt "${prompt.prompt}" to row ${i+1}...`]
-        }))
-      })
-      
-      // Simulate delay
-      await new Promise(resolve => setTimeout(resolve, 800))
+    // Save initial metadata
+    const metadata = {
+      originalFilePath: excelFilePath,
+      enrichedFilePath: outputFilePath,
+      startTime: new Date().toISOString(),
+      websiteColumnName,
+      aiPrompts,
+      status: 'processing'
     }
     
-    // Step 4: Save results
-    updateStats({ 
-      currentStep: 'saving-results',
-      currentLogMessage: 'Saving enriched Excel file...'
-    })
+    // Save the metadata
+    await window.api.workspace.saveFile(
+      workspacePath,
+      'processing-data.json',
+      JSON.stringify(metadata, null, 2)
+    )
     
-    // Add log entry for saving
+    // Process the Excel file
+    const { filePath, logs } = await ExcelService.processFile(
+      excelFilePath,
+      websiteColumnName,
+      aiPrompts,
+      outputFilePath,
+      screenshotsDir,
+      (currentRowIndex, totalRows, websiteUrl) => {
+        updateStats({ 
+          currentRowIndex,
+          totalRows, 
+          currentLogMessage: `Processing row ${currentRowIndex + 1} of ${totalRows}: ${websiteUrl}`
+        })
+      }
+    )
+    
+    // Update all logs
     updateStats((prevStats) => ({
-      logs: [...prevStats.logs, 'Saving enriched Excel file...']
+      logs: [...prevStats.logs, ...logs]
     }))
     
-    await new Promise(resolve => setTimeout(resolve, 1500))
+    // Update metadata with completion
+    const updatedMetadata = {
+      ...metadata,
+      status: 'completed',
+      endTime: new Date().toISOString()
+    }
     
-    // Step 5: Completed
+    await window.api.workspace.saveFile(
+      workspacePath,
+      'processing-data.json',
+      JSON.stringify(updatedMetadata, null, 2)
+    )
+    
+    // Mark as completed
     updateStats({ 
       currentStep: 'completed',
       currentLogMessage: 'Enrichment completed successfully!',
-      enrichedFilePath: outputFilePath
+      enrichedFilePath: filePath
     })
     
-    // Add final log entry
-    updateStats((prevStats) => ({
-      logs: [...prevStats.logs, 'Enrichment completed successfully!']
-    }))
-    
-    return outputFilePath
+    return filePath
   } catch (error: unknown) {
     console.error('Processing error:', error)
     
@@ -138,6 +126,26 @@ const processExcelFile = async (
     updateStats((prevStats) => ({
       logs: [...prevStats.logs, `ERROR: ${errorMessage}`]
     }))
+    
+    // Save error metadata
+    try {
+      const errorMetadata = {
+        originalFilePath: excelFilePath,
+        startTime: new Date().toISOString(),
+        websiteColumnName,
+        aiPrompts,
+        status: 'error',
+        error: errorMessage
+      }
+      
+      await window.api.workspace.saveFile(
+        workspacePath,
+        'error-data.json',
+        JSON.stringify(errorMetadata, null, 2)
+      )
+    } catch (metadataError) {
+      console.error('Failed to save error metadata:', metadataError)
+    }
     
     return null
   }
@@ -211,22 +219,23 @@ const ProcessingScreen: React.FC = () => {
     const startProcessing = async () => {
       if (excelFile && processingStats.currentStep === 'idle') {
         // Get workspace path
-        const workspacePath = await window.api.app.getWorkspacePath()
-        
-        // Start processing
-        await processExcelFile(
-          (stats) => {
-            if (typeof stats === 'function') {
-              updateProcessingStats((prevStats) => stats(prevStats))
-            } else {
-              updateProcessingStats(stats)
-            }
-          },
-          excelFile.filePath,
-          excelFile.websiteColumn!,
-          excelFile.aiPrompts,
-          workspacePath
-        )
+        try {
+          const workspacePath = await window.api.path.dirname(excelFile.filePath)
+          
+          // Start processing
+          await processExcelFile(
+            updateProcessingStats as (stats: Partial<ProcessingStats> | ((prevStats: ProcessingStats) => Partial<ProcessingStats>)) => void,
+            excelFile.filePath,
+            excelFile.websiteColumn!,
+            excelFile.aiPrompts,
+            workspacePath
+          )
+          
+          toast.success('Processing completed successfully')
+        } catch (error) {
+          console.error('Error during processing:', error)
+          toast.error('Error during processing')
+        }
       }
     }
     

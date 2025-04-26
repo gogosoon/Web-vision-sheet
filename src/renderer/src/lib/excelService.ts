@@ -1,5 +1,4 @@
 import * as Excel from 'exceljs'
-import path from 'path'
 import { AiPrompt } from './store'
 
 /**
@@ -47,13 +46,15 @@ export class ExcelService {
     websiteColumnName: string,
     aiPrompts: AiPrompt[],
     outputPath: string,
-    onProgress: (row: number, total: number) => void
-  ): Promise<string> {
+    screenshotsDir: string,
+    onProgress: (row: number, total: number, websiteUrl: string) => void
+  ): Promise<{filePath: string, logs: string[]}> {
     // Load the original file
     const workbook = new Excel.Workbook()
     await workbook.xlsx.readFile(originalFilePath)
     
     const worksheet = workbook.worksheets[0]
+    const logs: string[] = []
     
     // Find the column index for the website URL
     let websiteColumnIndex = -1
@@ -67,43 +68,92 @@ export class ExcelService {
       throw new Error(`Website column "${websiteColumnName}" not found in Excel file`)
     }
     
+    logs.push(`Found website column "${websiteColumnName}" at index ${websiteColumnIndex}`)
+    
     // Add new columns for AI-generated content
     aiPrompts.forEach(prompt => {
-      worksheet.getRow(1).getCell(worksheet.columnCount + 1).value = prompt.columnName
+      const newColumnName = prompt.columnName
+      worksheet.getRow(1).getCell(worksheet.columnCount + 1).value = newColumnName
+      logs.push(`Added new column: "${newColumnName}"`)
     })
     
     // Process each row (skip header row)
     const totalRows = worksheet.rowCount - 1
+    logs.push(`Starting to process ${totalRows} rows...`)
     
-    // In a real implementation, you would:
-    // 1. Process rows one by one
-    // 2. For each row, extract the website URL
-    // 3. Use Puppeteer to visit the website and take screenshots
-    // 4. Process each screenshot with OpenAI API
-    // 5. Add results to the new columns
+    // Import WebService and AiService dynamically (to avoid module not found errors in browser)
+    const { WebService } = await import('./webService')
+    const { AiService } = await import('./aiService')
     
-    // For now, we'll just add mock data
+    // Process each row
     for (let rowIndex = 2; rowIndex <= worksheet.rowCount; rowIndex++) {
       // Update progress
-      onProgress(rowIndex - 2, totalRows)
+      const currentRow = rowIndex - 2
       
       // Get website URL
       const websiteUrl = worksheet.getRow(rowIndex).getCell(websiteColumnIndex).value?.toString() || ''
+      if (!websiteUrl) {
+        logs.push(`Row ${rowIndex}: Empty website URL, skipping...`)
+        continue
+      }
       
-      // Add mock data for each AI prompt
-      aiPrompts.forEach((prompt, promptIndex) => {
-        const newColumnIndex = worksheet.columnCount - aiPrompts.length + promptIndex
-        const mockResult = `AI-generated content for "${websiteUrl}" using prompt: "${prompt.prompt}"`
-        worksheet.getRow(rowIndex).getCell(newColumnIndex + 1).value = mockResult
-      })
+      onProgress(currentRow, totalRows, websiteUrl)
+      logs.push(`Row ${rowIndex}: Processing website "${websiteUrl}"...`)
       
-      // Simulate processing delay
-      await new Promise(resolve => setTimeout(resolve, 100))
+      try {
+        // Take screenshot
+        const screenshotFileName = `screenshot-row-${rowIndex}.png`
+        const screenshotPath = await window.api.path.join(screenshotsDir, screenshotFileName)
+        
+        logs.push(`Row ${rowIndex}: Taking screenshot of "${websiteUrl}"...`)
+        
+        // In our case, we're not actually taking a screenshot, but we're simulating it
+        await WebService.takeScreenshot(websiteUrl, screenshotPath)
+        logs.push(`Row ${rowIndex}: Screenshot saved to "${screenshotPath}"`)
+        
+        // Extract content from the website
+        logs.push(`Row ${rowIndex}: Extracting content from "${websiteUrl}"...`)
+        const content = await WebService.extractContent(websiteUrl)
+        
+        // Process each AI prompt
+        for (let promptIndex = 0; promptIndex < aiPrompts.length; promptIndex++) {
+          const prompt = aiPrompts[promptIndex]
+          logs.push(`Row ${rowIndex}: Processing prompt "${prompt.prompt}"...`)
+          
+          // Process the content with AI
+          const aiResult = await AiService.processScreenshot(
+            screenshotPath,
+            websiteUrl,
+            prompt.prompt
+          )
+          
+          logs.push(`Row ${rowIndex}: AI generated result for "${prompt.columnName}"`)
+          
+          // Add result to the Excel file
+          const newColumnIndex = worksheet.columnCount - aiPrompts.length + promptIndex
+          worksheet.getRow(rowIndex).getCell(newColumnIndex + 1).value = aiResult
+        }
+        
+        logs.push(`Row ${rowIndex}: Processing completed`)
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : String(error)
+        logs.push(`Row ${rowIndex}: Error processing - ${errorMessage}`)
+        console.error(`Error processing row ${rowIndex}:`, error)
+        
+        // Add error message to the cells instead of the AI result
+        aiPrompts.forEach((_, promptIndex) => {
+          const newColumnIndex = worksheet.columnCount - aiPrompts.length + promptIndex
+          worksheet.getRow(rowIndex).getCell(newColumnIndex + 1).value = `Error: ${errorMessage}`
+        })
+      }
     }
+    
+    logs.push('All rows processed, saving enriched file...')
     
     // Save the enriched file
     await workbook.xlsx.writeFile(outputPath)
+    logs.push(`Enriched file saved to ${outputPath}`)
     
-    return outputPath
+    return { filePath: outputPath, logs }
   }
 } 

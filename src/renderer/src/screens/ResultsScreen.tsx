@@ -1,53 +1,81 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { useAppStore } from '@/lib/store'
 import { Button } from '@/components/button'
 import { Download, FolderOpen, RotateCcw, Check } from 'lucide-react'
-import path from 'path'
+import { toast } from 'react-hot-toast'
 
 const ResultsScreen: React.FC = () => {
   const { processingStats, excelFile, resetState, setCurrentScreen } = useAppStore()
+  const [loading, setLoading] = useState(false)
   
   const handleDownload = async () => {
-    if (!processingStats.enrichedFilePath) return
+    if (!processingStats.enrichedFilePath) {
+      toast.error("No enriched file available")
+      return
+    }
     
-    // In a real app, this would trigger a download or copy the file to a user-selected location
     try {
-      const defaultPath = path.join(
-        await window.api.app.getWorkspacePath(),
-        `enriched-${excelFile?.fileName || 'data.xlsx'}`
-      )
+      setLoading(true)
+      // Get the workspace path and enriched file name
+      const workspacePath = await window.api.path.dirname(processingStats.enrichedFilePath)
+      const fileName = await window.api.path.basename(processingStats.enrichedFilePath)
       
+      // Set up save dialog default path
+      const documentsPath = await window.api.app.getWorkspacePath()
+      const defaultPath = await window.api.path.join(documentsPath, fileName)
+      
+      // Show the save dialog
       const savePath = await window.api.dialog.saveFile({
         defaultPath,
         filters: [{ name: 'Excel Files', extensions: ['xlsx'] }]
       })
       
       if (savePath) {
+        // Copy the file
         const result = await window.api.file.copyFile(processingStats.enrichedFilePath, savePath)
         
         if (result.success) {
-          console.log('File saved successfully to', result.destination)
+          toast.success('File saved successfully')
         } else {
-          console.error('Failed to save file:', result.error)
+          toast.error(`Failed to save file: ${result.error}`)
         }
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error saving file:', error)
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      toast.error(`Failed to save file: ${errorMessage}`)
+    } finally {
+      setLoading(false)
     }
   }
   
   const handleOpenFolder = async () => {
     try {
-      const workspacePath = await window.api.app.getWorkspacePath()
-      await window.api.shell.openFolder(workspacePath)
-    } catch (error) {
+      setLoading(true)
+      if (processingStats.enrichedFilePath) {
+        // Open the folder containing the enriched file
+        const workspacePath = await window.api.path.dirname(processingStats.enrichedFilePath)
+        await window.api.shell.openFolder(workspacePath)
+        toast.success('Opening workspace folder')
+      } else {
+        // Fallback to the general workspace folder
+        const workspacePath = await window.api.app.getWorkspacePath()
+        await window.api.shell.openFolder(workspacePath)
+        toast.success('Opening general workspace folder')
+      }
+    } catch (error: unknown) {
       console.error('Error opening folder:', error)
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      toast.error(`Failed to open folder: ${errorMessage}`)
+    } finally {
+      setLoading(false)
     }
   }
   
   const handleStartNew = () => {
     resetState()
     setCurrentScreen('home')
+    toast.success('Ready for new enrichment')
   }
   
   return (
@@ -92,6 +120,7 @@ const ResultsScreen: React.FC = () => {
             <Button
               className="flex items-center justify-center gap-2"
               onClick={handleDownload}
+              disabled={loading || !processingStats.enrichedFilePath}
             >
               <Download size={18} />
               Download Excel
@@ -101,6 +130,7 @@ const ResultsScreen: React.FC = () => {
               variant="outline"
               className="flex items-center justify-center gap-2"
               onClick={handleOpenFolder}
+              disabled={loading}
             >
               <FolderOpen size={18} />
               Open Workspace
@@ -110,6 +140,7 @@ const ResultsScreen: React.FC = () => {
               variant="secondary"
               className="flex items-center justify-center gap-2"
               onClick={handleStartNew}
+              disabled={loading}
             >
               <RotateCcw size={18} />
               New Enrichment
