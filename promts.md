@@ -94,3 +94,12 @@ Always make sure exceljs part is completley isolated to backend process (ie.. El
 
 --
 Okay now can you update the renderer part to fix the functionality of the changes you made?
+--
+
+{manul bug fixes}
+
+Promt #4: 
+
+1. Create a directory called default_browser_profile in app config directory (if not exist)
+2. Use that directory as profile directory for puppeter
+3. When clicking on "Open Browser for Login (if needed)", Don't open google chrome instead please open the puppeter configured with headed mode and profile directory

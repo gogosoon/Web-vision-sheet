@@ -2,19 +2,50 @@
  * Service for web-related operations (Main Process)
  * This implementation needs actual Puppeteer logic
  */
-import puppeteer, { Browser, Page } from 'puppeteer'; // Import puppeteer
-import fs from 'node:fs/promises'; // For checking if screenshot exists
+import { app } from 'electron'; // <-- Add app import
+import puppeteer, { Browser, Page } from 'puppeteer';
+import fs from 'node:fs'; // <-- Use fs directly
+import path from 'node:path'; // <-- Add path import
 
 export class WebService {
   private browser: Browser | null = null;
+  private profilePath: string; // <-- Store profile path
+
+  constructor() { // <-- Add constructor
+    this.profilePath = path.join(app.getPath('userData'), 'default_browser_profile');
+    // Ensure the profile directory exists
+    try {
+      fs.mkdirSync(this.profilePath, { recursive: true });
+      console.log(`Ensured Puppeteer profile directory exists: ${this.profilePath}`);
+    } catch (error) {
+      console.error(`Failed to create Puppeteer profile directory: ${this.profilePath}`, error);
+      // Handle error appropriately, maybe throw or log
+    }
+  }
 
   // Ensure browser is launched
-  private async ensureBrowser(): Promise<Browser> {
+  private async ensureBrowser(headedMode = false): Promise<Browser> { // <-- Accept headedMode flag
     if (!this.browser || !this.browser.isConnected()) {
-      console.log('Launching Puppeteer browser...');
-      this.browser = await puppeteer.launch({ headless: false }); // Launch headless
+      console.log(`Launching Puppeteer browser (Headed: ${headedMode})...`);
+      try {
+        this.browser = await puppeteer.launch({
+          headless: !headedMode, // <-- Use headedMode flag
+          userDataDir: this.profilePath // <-- Use the profile path
+        });
+        console.log(`Puppeteer browser launched with profile: ${this.profilePath}`);
+      } catch (error) {
+        console.error('Failed to launch Puppeteer browser:', error);
+        throw error; // Re-throw the error to be handled upstream
+      }
     }
     return this.browser;
+  }
+
+  // Method to explicitly launch a headed browser (or focus if already open)
+  async launchHeadedBrowser(): Promise<Browser> {
+     console.log('launchHeadedBrowser called. Ensuring headed browser instance...');
+     // Always ensure it's headed when called via this method
+    return this.ensureBrowser(true);
   }
 
   // Close the browser when done
@@ -37,7 +68,8 @@ export class WebService {
         url = 'https://' + url;
       }
 
-      const browser = await this.ensureBrowser();
+      // Use ensureBrowser(false) for headless screenshots
+      const browser = await this.ensureBrowser(false);
       page = await browser.newPage();
       
       // Set viewport for full page screenshot if needed, or default

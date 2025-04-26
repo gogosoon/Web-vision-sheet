@@ -407,42 +407,26 @@ function setupIpcHandlers() {
       currentMainWindow.webContents.send('processingError', message)
     } finally {
       // Optional: Close browser after processing is fully complete?
-      // await webServiceInstance?.closeBrowser();
+      await webServiceInstance?.closeBrowser();
     }
   })
 
   // Launch browser
   ipcMain.handle('browser:launch', async () => {
+    console.log('IPC browser:launch received')
+    if (!webServiceInstance) {
+      console.error('Cannot launch browser: WebService instance is not available.')
+      return { success: false, error: 'WebService not initialized' }
+    }
+
     try {
-      const { exec } = require('child_process')
-      const userDataDir = path.join(app.getPath('userData'), 'puppeteer_profile')
-
-      // Create user data directory if it doesn't exist
-      if (!fs.existsSync(userDataDir)) {
-        fs.mkdirSync(userDataDir, { recursive: true })
-      }
-
-      // Determine the command to launch Chrome with the profile
-      let command
-      if (process.platform === 'win32') {
-        command = `start chrome --user-data-dir="${userDataDir}"`
-      } else if (process.platform === 'darwin') {
-        command = `/Applications/Google\\ Chrome.app/Contents/MacOS/Google\\ Chrome --user-data-dir="${userDataDir}"`
-      } else {
-        command = `google-chrome --user-data-dir="${userDataDir}"`
-      }
-
-      exec(command, (error) => {
-        if (error) {
-          console.error('Failed to launch browser:', error)
-          return { success: false, error: error.message }
-        }
-      })
-
-      return { success: true, profilePath: userDataDir }
+      // Call the WebService method to launch/ensure the headed browser
+      await webServiceInstance.launchHeadedBrowser()
+      console.log('Headed browser launched/focused successfully via WebService.')
+      return { success: true }
     } catch (error: unknown) {
-      console.error('Failed to launch browser:', error)
-      let errorMessage = 'Unknown error'
+      console.error('Failed to launch headed browser via WebService:', error)
+      let errorMessage = 'Unknown error during browser launch'
       if (error instanceof Error) {
         errorMessage = error.message
       }
