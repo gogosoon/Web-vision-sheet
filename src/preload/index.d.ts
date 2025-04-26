@@ -1,4 +1,5 @@
 import type { ElectronAPI } from '@electron-toolkit/preload'
+import { IpcRendererEvent } from 'electron'
 
 // Define types matching those in preload.ts
 interface ExcelFileInfo {
@@ -64,6 +65,17 @@ interface CustomAPI {
     onComplete: (callback: (payload: ProcessingCompletePayload) => void) => () => void; // Returns cleanup function
     onError: (callback: (errorMessage: string) => void) => () => void; // Returns cleanup function
     removeAllListeners: () => void;
+  };
+  auth: {
+    onAuthCallback: (callback: (token: string) => void) => () => void;
+    openBrowserLogin: (url: string) => void;
+    checkProtocolRegistration: () => Promise<boolean>;
+    validateToken: (token: string) => Promise<IpcResponse<{user: any}>>;
+  };
+  ipcRenderer: {
+    send: (channel: string, ...args: any[]) => void;
+    on: (channel: string, listener: (event: IpcRendererEvent, ...args: any[]) => void) => void;
+    removeAllListeners: (channel: string) => void;
   };
 }
 

@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, dialog, session } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
@@ -11,6 +11,21 @@ import { homedir } from 'os'
 import { ExcelHandler } from './excelService'
 import { WebService } from './webService'
 import { AiService, AiPrompt } from './aiService'
+
+// Import custom protocols
+import { protocol } from 'electron'
+import * as url from 'url'
+
+// Import node-fetch
+import fetch from 'node-fetch'
+
+// Define the app protocol (same as in constants.ts in renderer)
+const APP_PROTOCOL = 'glintify'
+
+// Define the API URLs (same as in constants.ts in renderer)
+const WEB_APP_URL = 'http://localhost:3000'
+const API_URL = `${WEB_APP_URL}/api`
+const VALIDATE_TOKEN_ENDPOINT = `${API_URL}/auth/validate-desktop-token`
 
 let mainWindow: BrowserWindow | null = null // Keep track of the main window
 let webServiceInstance: WebService | null = null // Keep track of WebService instance
@@ -40,6 +55,32 @@ function getWorkspacePath() {
   return workspacePath
 }
 
+// Register app protocol for deep linking
+const registerAppProtocol = () => {
+  if (process.defaultApp) {
+    if (process.argv.length >= 2) {
+      app.setAsDefaultProtocolClient(APP_PROTOCOL, process.execPath, [
+        join(__dirname, process.argv[1])
+      ])
+    }
+  } else {
+    app.setAsDefaultProtocolClient(APP_PROTOCOL)
+  }
+}
+
+// Parse the auth token from the callback URL
+const parseAuthToken = (callbackUrl: string): string | null => {
+  try {
+    const parsed = new URL(callbackUrl)
+    // Extract token from query parameters
+    const token = parsed.searchParams.get('token')
+    return token
+  } catch (error) {
+    console.error('Error parsing auth callback URL:', error)
+    return null
+  }
+}
+
 function createWindow(): void {
   // Create the browser window.
   const newWindow = new BrowserWindow({
@@ -55,6 +96,23 @@ function createWindow(): void {
   })
 
   mainWindow = newWindow // Assign once created
+
+  // Set Content Security Policy to allow connections to the API server
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        'Content-Security-Policy': [
+          `default-src 'self' ${WEB_APP_URL} ${API_URL};` +
+          `connect-src 'self' ${WEB_APP_URL} ${API_URL};` +
+          `script-src 'self' 'unsafe-inline' 'unsafe-eval';` +
+          `style-src 'self' 'unsafe-inline';` +
+          `img-src 'self' data: ${WEB_APP_URL} ${API_URL};` +
+          `font-src 'self' data:;`
+        ]
+      }
+    })
+  })
 
   mainWindow.on('closed', () => {
     mainWindow = null // Clear reference on close
@@ -80,6 +138,60 @@ function createWindow(): void {
   } else {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
   }
+
+  // Handle auth-callback protocol
+  app.on('open-url', (event, url) => {
+    event.preventDefault()
+    
+    if (url.startsWith(`${APP_PROTOCOL}://auth-callback`)) {
+      const token = parseAuthToken(url)
+      if (token && mainWindow) {
+        mainWindow.webContents.send('auth-callback', token)
+      }
+    }
+  })
+
+  // IPC Handlers for authentication
+  ipcMain.on('open-browser-login', (_, loginUrl) => {
+    shell.openExternal(loginUrl)
+  })
+
+  ipcMain.handle('auth:check-protocol-registration', () => {
+    return app.isDefaultProtocolClient(APP_PROTOCOL)
+  })
+  
+  // Handle token validation
+  ipcMain.handle('auth:validate-token', async (_, token) => {
+    try {
+      const response = await fetch(VALIDATE_TOKEN_ENDPOINT, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      })
+      
+      const data = await response.json()
+      
+      if (!response.ok) {
+        return { 
+          success: false, 
+          error: data.error || 'Failed to validate token' 
+        }
+      }
+      
+      return { 
+        success: true, 
+        data 
+      }
+    } catch (error) {
+      console.error('Error validating token:', error)
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Network error occurred'
+      }
+    }
+  })
 }
 
 // This method will be called when Electron has finished
@@ -101,6 +213,9 @@ app.whenReady().then(() => {
 
   // Set up IPC handlers
   setupIpcHandlers()
+
+  // Register the custom protocol
+  registerAppProtocol()
 
   createWindow()
 

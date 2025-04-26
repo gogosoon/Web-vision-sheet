@@ -100,6 +100,41 @@ const api = {
         ipcRenderer.removeAllListeners('processingComplete');
         ipcRenderer.removeAllListeners('processingError');
     }
+  },
+
+  // Auth related methods
+  auth: {
+    // Receive token from main process after browser redirect
+    onAuthCallback: (callback: (token: string) => void): (() => void) => {
+      const handler = (_event: IpcRendererEvent, token: string) => callback(token);
+      ipcRenderer.on('auth-callback', handler);
+      return () => ipcRenderer.removeListener('auth-callback', handler);
+    },
+    // Open browser for login
+    openBrowserLogin: (url: string): void => {
+      ipcRenderer.send('open-browser-login', url);
+    },
+    // Check if the auth protocol is registered
+    checkProtocolRegistration: (): Promise<boolean> => {
+      return ipcRenderer.invoke('auth:check-protocol-registration');
+    },
+    // Validate token with the backend
+    validateToken: (token: string): Promise<IpcResponse<{user: any}>> => {
+      return ipcRenderer.invoke('auth:validate-token', token);
+    }
+  },
+
+  // IPC sender
+  ipcRenderer: {
+    send: (channel: string, ...args: any[]): void => {
+      ipcRenderer.send(channel, ...args);
+    },
+    on: (channel: string, listener: (event: IpcRendererEvent, ...args: any[]) => void): void => {
+      ipcRenderer.on(channel, listener);
+    },
+    removeAllListeners: (channel: string): void => {
+      ipcRenderer.removeAllListeners(channel);
+    }
   }
 }
 
