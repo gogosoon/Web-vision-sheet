@@ -121,6 +121,10 @@ const api = {
     // Validate token with the backend
     validateToken: (token: string): Promise<IpcResponse<{user: any}>> => {
       return ipcRenderer.invoke('auth:validate-token', token);
+    },
+    // Get user profile
+    getUserProfile: (token: string): Promise<IpcResponse<{user: any}>> => {
+      return ipcRenderer.invoke('auth:get-user-profile', token);
     }
   },
 

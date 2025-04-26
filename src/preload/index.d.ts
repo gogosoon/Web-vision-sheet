@@ -71,6 +71,7 @@ interface CustomAPI {
     openBrowserLogin: (url: string) => void;
     checkProtocolRegistration: () => Promise<boolean>;
     validateToken: (token: string) => Promise<IpcResponse<{user: any}>>;
+    getUserProfile: (token: string) => Promise<IpcResponse<{user: any}>>;
   };
   ipcRenderer: {
     send: (channel: string, ...args: any[]) => void;

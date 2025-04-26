@@ -4,6 +4,7 @@ import HomeScreen from './screens/HomeScreen'
 import ProcessingScreen from './screens/ProcessingScreen'
 import ResultsScreen from './screens/ResultsScreen'
 import LoginScreen from './screens/LoginScreen'
+import { UserProfile } from './components/UserProfile'
 import { Toaster } from 'react-hot-toast'
 
 function App(): React.JSX.Element {
@@ -28,10 +29,20 @@ function App(): React.JSX.Element {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {currentScreen === 'login' && <LoginScreen />}
-      {currentScreen === 'home' && <HomeScreen />}
-      {currentScreen === 'processing' && <ProcessingScreen />}
-      {currentScreen === 'results' && <ResultsScreen />}
+      {/* Top bar with user profile */}
+      {auth.authenticated && (
+        <div className="w-full h-12 bg-white border-b border-gray-200 flex items-center justify-end px-4">
+          <UserProfile />
+        </div>
+      )}
+      
+      {/* Main content */}
+      <div className={auth.authenticated ? 'pt-4' : ''}>
+        {currentScreen === 'login' && <LoginScreen />}
+        {currentScreen === 'home' && <HomeScreen />}
+        {currentScreen === 'processing' && <ProcessingScreen />}
+        {currentScreen === 'results' && <ResultsScreen />}
+      </div>
       
       <Toaster position="top-right" />
     </div>

@@ -180,12 +180,55 @@ function createWindow(): void {
         }
       }
       
+      // Record login time
+      fetch(`${API_URL}/auth/record-login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      }).catch(err => {
+        console.error('Failed to record login time:', err)
+      })
+      
       return { 
         success: true, 
         data 
       }
     } catch (error) {
       console.error('Error validating token:', error)
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Network error occurred'
+      }
+    }
+  })
+
+  // Handle getting user profile
+  ipcMain.handle('auth:get-user-profile', async (_, token) => {
+    try {
+      const response = await fetch(`${API_URL}/profile`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+      
+      const data = await response.json()
+      
+      if (!response.ok) {
+        return { 
+          success: false, 
+          error: data.error || 'Failed to get user profile' 
+        }
+      }
+      
+      return { 
+        success: true, 
+        data 
+      }
+    } catch (error) {
+      console.error('Error getting user profile:', error)
       return { 
         success: false, 
         error: error instanceof Error ? error.message : 'Network error occurred'

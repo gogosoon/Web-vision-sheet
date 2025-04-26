@@ -29,15 +29,18 @@ export interface ProcessingStats {
   enrichedFilePath: string | null
 }
 
+export interface User {
+  id: string
+  name?: string | null
+  email?: string | null
+  image?: string | null
+  credits: number
+}
+
 export interface AuthState {
   authenticated: boolean
   token: string | null
-  user: {
-    id: string
-    name?: string | null
-    email?: string | null
-    image?: string | null
-  } | null
+  user: User | null
   error: string | null
   isLoading: boolean
 }
@@ -66,6 +69,7 @@ interface AppState {
   // Auth actions
   setAuth: (auth: Partial<AuthState>) => void
   login: (token: string) => Promise<void>
+  refreshUserProfile: () => Promise<void>
   logout: () => void
 }
 
@@ -175,13 +179,23 @@ export const useAppStore = create<AppState>()(
             throw new Error(response.error || 'Failed to validate token')
           }
           
-          const userData = response.data.user
+          const userData = response.data?.user
+          
+          if (!userData) {
+            throw new Error('Invalid user data received')
+          }
           
           set({
             auth: {
               authenticated: true,
               token,
-              user: userData,
+              user: {
+                id: userData.id,
+                name: userData.name,
+                email: userData.email,
+                image: userData.image,
+                credits: userData.credits || 0
+              },
               error: null,
               isLoading: false
             },
@@ -198,6 +212,53 @@ export const useAppStore = create<AppState>()(
               isLoading: false
             }
           }))
+        }
+      },
+      
+      refreshUserProfile: async () => {
+        const { token } = get().auth
+        if (!token) return
+        
+        try {
+          set((state) => ({ 
+            auth: { ...state.auth, isLoading: true, error: null } 
+          }))
+          
+          const response = await window.api.auth.getUserProfile(token)
+          
+          if (!response.success) {
+            throw new Error(response.error || 'Failed to refresh profile')
+          }
+          
+          const userData = response.data?.user
+          
+          if (!userData) {
+            throw new Error('Invalid user data received')
+          }
+          
+          set((state) => ({
+            auth: {
+              ...state.auth,
+              user: {
+                id: userData.id,
+                name: userData.name,
+                email: userData.email,
+                image: userData.image,
+                credits: userData.credits || 0
+              },
+              error: null,
+              isLoading: false
+            }
+          }))
+        } catch (error) {
+          set((state) => ({
+            auth: {
+              ...state.auth,
+              error: error instanceof Error ? error.message : 'Failed to refresh profile',
+              isLoading: false
+            }
+          }))
+          throw error
         }
       },
       
