@@ -12,7 +12,7 @@ export class WebService {
   private async ensureBrowser(): Promise<Browser> {
     if (!this.browser || !this.browser.isConnected()) {
       console.log('Launching Puppeteer browser...');
-      this.browser = await puppeteer.launch({ headless: true }); // Launch headless
+      this.browser = await puppeteer.launch({ headless: false }); // Launch headless
     }
     return this.browser;
   }
@@ -44,7 +44,7 @@ export class WebService {
       await page.setViewport({ width: 1920, height: 1080 }); // Example viewport
 
       console.log(`Navigating to ${url}...`);
-      await page.goto(url, { waitUntil: 'networkidle0', timeout: 60000 }); // Wait for network idle, 60s timeout
+      await page.goto(url, { waitUntil: 'networkidle0', timeout: 20000 }); // Wait for network idle, 20s timeout
 
       console.log(`Taking screenshot of ${url}...`);
       await page.screenshot({ path: outputPath, fullPage: true }); // Take full page screenshot

@@ -17,59 +17,6 @@ const HomeScreen: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(false)
   const excelFile = useAppStore((state) => state.excelFile)
 
-  const createWorkspace = async (file: File): Promise<string> => {
-    try {
-      // Create a timestamped workspace name
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
-      const workspaceName = `workspace-${timestamp}`
-      
-      // Create the workspace directory
-      const result = await window.api.workspace.create(workspaceName)
-      
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to create workspace directory')
-      }
-      
-      // Read the file as an array buffer
-      const arrayBuffer = await file.arrayBuffer()
-      
-      // Convert ArrayBuffer to Uint8Array which can be safely passed through IPC
-      const uint8Array = new Uint8Array(arrayBuffer)
-      
-      // Save the original file to the workspace
-      const saveResult = await window.api.workspace.saveFile(
-        result.path!,
-        'input.xlsx',
-        uint8Array
-      )
-      
-      if (!saveResult.success) {
-        throw new Error(saveResult.error || 'Failed to save file to workspace')
-      }
-      
-      // Save initial metadata
-      const metadata = {
-        originalFileName: file.name,
-        uploadTime: new Date().toISOString(),
-        workspacePath: result.path
-      }
-      
-      // Save metadata as JSON
-      await window.api.workspace.saveFile(
-        result.path!,
-        'data.json',
-        JSON.stringify(metadata, null, 2)
-      )
-      
-      return saveResult.path!
-    } catch (error: unknown) {
-      console.error('Error creating workspace:', error)
-      const errorMessage = error instanceof Error ? error.message : String(error)
-      toast.error(`Failed to create workspace: ${errorMessage}`)
-      throw error
-    }
-  }
-
   const handleLaunchBrowser = async () => {
     try {
       setLoading(true)
