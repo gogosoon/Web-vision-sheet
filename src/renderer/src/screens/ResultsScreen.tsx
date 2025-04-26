@@ -3,6 +3,7 @@ import { useAppStore } from '@/lib/store'
 import { Button } from '@/components/button'
 import { Download, FolderOpen, RotateCcw, Check } from 'lucide-react'
 import { toast } from 'react-hot-toast'
+import BaseWrapper from '@/components/BaseWrapper'
 
 const ResultsScreen: React.FC = () => {
   const { processingStats, excelFile, resetState, setCurrentScreen } = useAppStore()
@@ -79,13 +80,13 @@ const ResultsScreen: React.FC = () => {
   }
   
   return (
-    <div className="flex flex-col min-h-screen p-8">
-      <header className="text-center mb-10">
-        <h1 className="text-3xl font-bold mb-2">Enrichment Complete!</h1>
-        <p className="text-xl text-gray-500">Your data has been successfully processed</p>
-      </header>
+    <BaseWrapper>
+      <div className="w-full max-w-3xl mx-auto p-6 rounded-lg shadow-lg bg-white text-gray-800">
+        <div className="text-center mb-10">
+          <h1 className="text-3xl font-bold mb-2">Enrichment Complete!</h1>
+          <p className="text-xl text-slate-500">Your data has been successfully processed</p>
+        </div>
       
-      <div className="max-w-2xl mx-auto w-full">
         <div className="bg-white p-8 rounded-lg shadow-sm border mb-8">
           <div className="flex items-center justify-center mb-8">
             <div className="flex h-20 w-20 items-center justify-center rounded-full bg-green-100 text-green-600">
@@ -173,7 +174,7 @@ const ResultsScreen: React.FC = () => {
           </div>
         </div>
       </div>
-    </div>
+    </BaseWrapper>
   )
 }
 

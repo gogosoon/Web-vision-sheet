@@ -33,11 +33,7 @@ function App(): React.JSX.Element {
       
       {/* Main content */}
       <div className={`flex-1 overflow-auto ${auth.authenticated ? '' : ''}`}>
-      {auth.authenticated && (
-        <div className="w-full h-12 bg-white border-b border-gray-200 flex items-center justify-end px-4 flex-shrink-0">
-          <UserProfile />
-        </div>
-      )}
+     
         {currentScreen === 'login' && <LoginScreen />}
         {currentScreen === 'home' && <HomeScreen />}
         {currentScreen === 'processing' && <ProcessingScreen />}

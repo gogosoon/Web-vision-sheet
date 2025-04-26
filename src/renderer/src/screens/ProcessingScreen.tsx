@@ -5,6 +5,7 @@ import { Terminal, ChevronDown, ChevronUp, CheckCircle, XCircle, AlertCircle } f
 // import { ExcelService } from '@/lib/excelService' // Removed: Logic moved to main process
 import { toast } from 'react-hot-toast'
 import type { ProcessingStats } from '@/lib/store'
+import BaseWrapper from '@/components/BaseWrapper'
 
 // Removed the old processExcelFile function
 
@@ -166,18 +167,18 @@ const ProcessingScreen: React.FC = () => {
   const currentStatusText = formatStepName(processingStats.currentStep)
 
   return (
-    <div className="flex flex-col min-h-screen p-8 bg-gray-50">
-      <header className="text-center mb-8">
-        <h1 className="text-3xl font-bold mb-2 text-gray-800">Processing Excel File</h1>
-        {excelFile && (
-          <p className="text-lg text-slate-600 truncate" title={excelFile.fileName}>
-            Processing: {excelFile.fileName}
-          </p>
-        )}
-      </header>
-
+    <BaseWrapper>
       <div className="flex-grow flex flex-col items-center justify-center w-full max-w-4xl mx-auto">
-        <div className="bg-white p-8 rounded-lg shadow-lg border border-gray-200 w-full">
+        <div className="text-center mb-8 w-full">
+          <h1 className="text-3xl font-bold mb-2 text-gray-800">Processing Excel File</h1>
+          {excelFile && (
+            <p className="text-lg text-slate-600 truncate" title={excelFile.fileName}>
+              Processing: {excelFile.fileName}
+            </p>
+          )}
+        </div>
+
+        <div className="bg-white p-8 rounded-lg shadow-lg border border-gray-200 w-full text-gray-800">
           {/* Status and Progress Bar */}
           <div className="text-center mb-6">
              <div className="flex items-center justify-center gap-2 mb-2">
@@ -246,11 +247,7 @@ const ProcessingScreen: React.FC = () => {
           )}
         </div>
       </div>
-
-      <footer className="text-center text-xs text-slate-400 mt-auto pt-4">
-          Glintify v1.0 - Electron & React
-      </footer>
-    </div>
+    </BaseWrapper>
   )
 }
 

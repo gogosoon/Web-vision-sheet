@@ -4,6 +4,7 @@ import { useAppStore } from '@/lib/store'
 import { Button } from '@/components/button'
 import { Upload, FileSpreadsheet, Info, PlusCircle, X, Chrome } from 'lucide-react'
 import { toast } from 'react-hot-toast'
+import BaseWrapper from '@/components/BaseWrapper'
 
 // Import the AiPrompt type if it's defined centrally, or define it here
 // Assuming it might be available via store or a types file
@@ -213,180 +214,173 @@ const HomeScreen: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-col min-h-screen p-8 gap-6 bg-gray-50">
-      <header className="text-center mb-6">
-        <h1 className="text-4xl font-bold mb-2 text-gray-800">Glintify.io</h1>
-        <p className="text-xl text-slate-600">Enrich your Excel data with AI and website insights.</p>
-
-        {/* Browser launch button - Keep existing logic */}
-        <div className="mt-4">
+    <BaseWrapper>
+      <div className="w-full max-w-4xl mx-auto p-6 rounded-lg shadow-lg bg-white text-gray-800">
+        {/* Browser launch button - Kept here as it seems specific to this screen */}
+        <div className="mb-6 text-center">
           <Button
             variant="outline"
             onClick={handleLaunchBrowser}
             disabled={loading}
-            className="flex items-center gap-2 mx-auto bg-white cursor-pointer"
+            className="flex items-center gap-2 mx-auto bg-white hover:bg-gray-100 text-gray-700 border border-gray-300 px-4 py-2 rounded-md shadow-sm cursor-pointer"
           >
             <Chrome size={18} />
             Open Browser for Login (if needed)
           </Button>
            <p className="text-xs text-slate-500 mt-1">Some websites might require you to be logged in. Open the browser to log in first.</p>
         </div>
-      </header>
 
-      {/* --- Initial Upload Step --- */}
-      {uploadStep === 'initial' && (
-        <div className="flex-1 flex flex-col items-center justify-center">
-          <div
-            {...getRootProps()}
-            className={`
-              border-2 border-dashed rounded-lg p-12 w-full max-w-2xl mx-auto bg-white
-              flex flex-col items-center justify-center space-y-4 cursor-pointer
-              transition-colors duration-200
-              ${isDragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-blue-400'}
-              ${loading ? 'opacity-50 cursor-not-allowed' : ''}
-            `}
-          >
-            <input {...getInputProps()} />
-            <Upload size={64} className="text-slate-400 mb-4" />
-            <div className="text-center">
-              <p className="text-lg font-medium mb-2 text-gray-700">
-                {isDragActive
-                  ? 'Drop the Excel file here'
-                  : loading
-                  ? 'Processing...'
-                  : 'Drag & drop Excel file here, or click to select'}
-              </p>
-              <p className="text-sm text-slate-500">Supports .xlsx files</p>
-            </div>
-            {/* Button removed, click area is the button now */}
-          </div>
-
-          {error && (
-            <div className="mt-6 p-3 bg-red-100 text-red-700 rounded-md flex items-center max-w-2xl mx-auto">
-              <Info size={18} className="mr-2 flex-shrink-0" />
-              <span>{error}</span>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* --- Configuration Steps (Column Selection & AI Prompts) --- */}
-      {(uploadStep === 'column-selection' || uploadStep === 'ai-prompts') && excelFile && (
-        <div className="flex-1 flex flex-col max-w-3xl mx-auto w-full gap-6">
-          {/* File Details & Column Selection */}
-          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-            <h2 className="text-xl font-semibold mb-4 text-gray-700">1. Select Website Column</h2>
-            <div className="grid grid-cols-3 gap-4 mb-6 text-sm">
-              <div>
-                <p className="text-gray-500">Filename</p>
-                <p className="font-medium truncate" title={excelFile.fileName}>{excelFile.fileName}</p>
-              </div>
-              <div>
-                <p className="text-gray-500">Sheet</p>
-                <p className="font-medium">{excelFile.selectedSheet}</p>
-              </div>
-              <div>
-                <p className="text-gray-500">Total Rows</p>
-                <p className="font-medium">{excelFile.totalRows}</p>
-              </div>
-            </div>
-
-            <label htmlFor="websiteColumn" className="block text-sm font-medium text-gray-700 mb-2">
-              Column containing website URLs:
-            </label>
-            <select
-              id="websiteColumn"
-              value={excelFile.websiteColumn || ''}
-              onChange={handleWebsiteColumnSelect}
-              className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-              disabled={loading}
+        {/* --- Initial Upload Step --- */}
+        {uploadStep === 'initial' && (
+          <div className="flex flex-col items-center justify-center">
+            <div
+              {...getRootProps()}
+              className={`
+                border-2 border-dashed rounded-lg p-12 w-full max-w-2xl mx-auto bg-white
+                flex flex-col items-center justify-center space-y-4 cursor-pointer
+                transition-colors duration-200
+                ${isDragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-blue-400'}
+                ${loading ? 'opacity-50 cursor-not-allowed' : ''}
+              `}
             >
-              <option value="" disabled>-- Select Column --</option>
-              {excelFile.columns.map((col) => (
-                <option key={col} value={col}>{col}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* AI Prompts Configuration */}
-          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-            <h2 className="text-xl font-semibold mb-4 text-gray-700">2. Configure AI Prompts</h2>
-            <p className="text-sm text-slate-600 mb-4">
-              Add columns to your Excel file based on AI analysis of each website's screenshot.
-            </p>
-
-            {/* List Existing Prompts */}
-            <div className="space-y-2 mb-4">
-              {excelFile.aiPrompts.length > 0 ? (
-                excelFile.aiPrompts.map((prompt) => (
-                  <div key={prompt.columnName} className="flex items-center justify-between p-2 bg-gray-100 rounded-md">
-                    <div className="text-sm">
-                      <span className="font-medium">{prompt.columnName}:</span>
-                      <span className="text-gray-600 ml-2 truncate" title={prompt.prompt}>{prompt.prompt}</span>
-                    </div>
-                    <Button variant="ghost" size="icon" onClick={() => handleRemovePrompt(prompt.columnName)} disabled={loading}>
-                      <X size={16} />
-                    </Button>
-                  </div>
-                ))
-              ) : (
-                <p className="text-sm text-slate-500 text-center py-2">No AI prompts added yet.</p>
-              )}
+              <input {...getInputProps()} />
+              <Upload size={64} className="text-slate-400 mb-4" />
+              <div className="text-center">
+                <p className="text-lg font-medium mb-2 text-gray-700">
+                  {isDragActive
+                    ? 'Drop the Excel file here'
+                    : loading
+                    ? 'Processing...'
+                    : 'Drag & drop Excel file here, or click to select'}
+                </p>
+                <p className="text-sm text-slate-500">Supports .xlsx files</p>
+              </div>
+              {/* Button removed, click area is the button now */}
             </div>
 
-            {/* Add New Prompt Form */}
-            <div className="flex flex-col sm:flex-row gap-4 border-t pt-4">
-              <input
-                type="text"
-                placeholder="New Column Name (e.g., Summary)"
-                value={newPrompt.columnName}
-                onChange={(e) => setNewPrompt({ ...newPrompt, columnName: e.target.value })}
-                className="flex-1 p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+            {error && (
+              <div className="mt-6 p-3 bg-red-100 text-red-700 rounded-md flex items-center max-w-2xl mx-auto">
+                <Info size={18} className="mr-2 flex-shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* --- Configuration Steps (Column Selection & AI Prompts) --- */}
+        {(uploadStep === 'column-selection' || uploadStep === 'ai-prompts') && excelFile && (
+          <div className="flex-1 flex flex-col max-w-3xl mx-auto w-full gap-6">
+            {/* File Details & Column Selection */}
+            <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+              <h2 className="text-xl font-semibold mb-4 text-gray-700">1. Select Website Column</h2>
+              <div className="grid grid-cols-3 gap-4 mb-6 text-sm">
+                <div>
+                  <p className="text-gray-500">Filename</p>
+                  <p className="font-medium truncate" title={excelFile.fileName}>{excelFile.fileName}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500">Sheet</p>
+                  <p className="font-medium">{excelFile.selectedSheet}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500">Total Rows</p>
+                  <p className="font-medium">{excelFile.totalRows}</p>
+                </div>
+              </div>
+
+              <label htmlFor="websiteColumn" className="block text-sm font-medium text-gray-700 mb-2">
+                Column containing website URLs:
+              </label>
+              <select
+                id="websiteColumn"
+                value={excelFile.websiteColumn || ''}
+                onChange={handleWebsiteColumnSelect}
+                className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
                 disabled={loading}
-              />
-              <input
-                type="text"
-                placeholder="AI Prompt (e.g., Summarize the website)"
-                value={newPrompt.prompt}
-                onChange={(e) => setNewPrompt({ ...newPrompt, prompt: e.target.value })}
-                className="flex-1 p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                disabled={loading}
-              />
-              <Button 
-                onClick={handleAddPrompt} 
-                disabled={loading || !newPrompt.columnName || !newPrompt.prompt}
-                className="whitespace-nowrap"
               >
-                <PlusCircle size={18} className="mr-2" /> Add Prompt
+                <option value="" disabled>-- Select Column --</option>
+                {excelFile.columns.map((col) => (
+                  <option key={col} value={col}>{col}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* AI Prompts Configuration */}
+            <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+              <h2 className="text-xl font-semibold mb-4 text-gray-700">2. Configure AI Prompts</h2>
+              <p className="text-sm text-slate-600 mb-4">
+                Add columns to your Excel file based on AI analysis of each website's screenshot.
+              </p>
+
+              {/* List Existing Prompts */}
+              <div className="space-y-2 mb-4">
+                {excelFile.aiPrompts.length > 0 ? (
+                  excelFile.aiPrompts.map((prompt) => (
+                    <div key={prompt.columnName} className="flex items-center justify-between p-2 bg-gray-100 rounded-md">
+                      <div className="text-sm">
+                        <span className="font-medium">{prompt.columnName}:</span>
+                        <span className="text-gray-600 ml-2 truncate" title={prompt.prompt}>{prompt.prompt}</span>
+                      </div>
+                      <Button variant="ghost" size="icon" onClick={() => handleRemovePrompt(prompt.columnName)} disabled={loading}>
+                        <X size={16} />
+                      </Button>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-slate-500 text-center py-2">No AI prompts added yet.</p>
+                )}
+              </div>
+
+              {/* Add New Prompt Form */}
+              <div className="flex flex-col sm:flex-row gap-4 border-t pt-4">
+                <input
+                  type="text"
+                  placeholder="New Column Name (e.g., Summary)"
+                  value={newPrompt.columnName}
+                  onChange={(e) => setNewPrompt({ ...newPrompt, columnName: e.target.value })}
+                  className="flex-1 p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  disabled={loading}
+                />
+                <input
+                  type="text"
+                  placeholder="AI Prompt (e.g., Summarize the website)"
+                  value={newPrompt.prompt}
+                  onChange={(e) => setNewPrompt({ ...newPrompt, prompt: e.target.value })}
+                  className="flex-1 p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  disabled={loading}
+                />
+                <Button 
+                  onClick={handleAddPrompt} 
+                  disabled={loading || !newPrompt.columnName || !newPrompt.prompt}
+                  className="whitespace-nowrap"
+                >
+                  <PlusCircle size={18} className="mr-2" /> Add Prompt
+                </Button>
+              </div>
+            </div>
+
+            {/* Error Display */}
+            {error && (
+              <div className="mt-2 p-3 bg-red-100 text-red-700 rounded-md flex items-center">
+                <Info size={18} className="mr-2 flex-shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
+            
+            {/* Continue Button */}
+            <div className="mt-auto pt-6 text-center">
+               <Button 
+                  onClick={startProcessing} 
+                  disabled={loading || !excelFile.websiteColumn || excelFile.aiPrompts.length === 0}
+                  size="lg"
+                >
+                  Start Processing
               </Button>
             </div>
           </div>
-
-          {/* Error Display */}
-          {error && (
-            <div className="mt-2 p-3 bg-red-100 text-red-700 rounded-md flex items-center">
-              <Info size={18} className="mr-2 flex-shrink-0" />
-              <span>{error}</span>
-            </div>
-          )}
-          
-          {/* Continue Button */}
-          <div className="mt-auto pt-6 text-center">
-             <Button 
-                onClick={startProcessing} 
-                disabled={loading || !excelFile.websiteColumn || excelFile.aiPrompts.length === 0}
-                size="lg"
-              >
-                Start Processing
-            </Button>
-          </div>
-        </div>
-      )}
-
-      <footer className="text-center text-xs text-slate-400 mt-auto pt-4">
-          Glintify v1.0 - Electron & React
-      </footer>
-    </div>
+        )}
+      </div>
+    </BaseWrapper>
   )
 }
 

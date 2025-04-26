@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useAppStore } from '../lib/store'
 import { DESKTOP_LOGIN_URL } from '../lib/constants'
+import BaseWrapper from '../components/BaseWrapper'
 
 const LoginScreen = () => {
   const { auth, login } = useAppStore()
@@ -34,8 +35,8 @@ const LoginScreen = () => {
   }, [login])
   
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-      <div className="bg-white p-8 rounded-lg shadow-md max-w-md w-full">
+    <BaseWrapper>
+      <div className="bg-white p-8 rounded-lg shadow-md max-w-md w-full text-gray-800">
         <div className="text-center mb-6">
           <h1 className="text-2xl font-bold">Glintify</h1>
           <p className="text-gray-600 mt-2">Sign in to continue</p>
@@ -92,7 +93,7 @@ const LoginScreen = () => {
           </button>
         </div>
       </div>
-    </div>
+    </BaseWrapper>
   )
 }
 

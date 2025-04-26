@@ -83,7 +83,7 @@ export function UserProfile() {
             className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center cursor-pointer"
           >
             <RefreshCw size={16} className={`mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
-            Refresh Profile
+            Refresh Credits
           </button>
           
           <button 
