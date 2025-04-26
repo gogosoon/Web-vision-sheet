@@ -19,94 +19,104 @@ interface LlmResponse {
   error?: string;
 }
 
+interface BackendApiResponse {
+  result?: any; // Expecting structured data now
+  error?: string;
+}
+
 export class AiService {
-  private apiKey: string | undefined;
+  // Removed apiKey, using authToken for backend API
   private apiUrl: string | undefined;
+  private authToken: string | undefined; // Added for backend authentication
 
-  constructor(apiKey?: string, apiUrl?: string) {
-    this.apiKey = apiKey || process.env.LLM_API_KEY; // Use provided key or environment variable
-    this.apiUrl = apiUrl || process.env.LLM_API_URL; // Use provided URL or environment variable
+  constructor(authToken?: string, apiUrl?: string) {
+    // Assuming authToken is retrieved from secure storage or main process state
+    this.authToken = authToken || process.env.BACKEND_AUTH_TOKEN;
+    // Renamed env var for clarity
+    this.apiUrl = apiUrl || process.env.BACKEND_API_URL || 'http://localhost:3000/api/ai/parse-screenshot'; // Default backend URL
 
-    if (!this.apiKey) {
-      console.warn('LLM_API_KEY not set. AI Service calls will likely fail.');
+    if (!this.authToken) {
+      console.warn('BACKEND_AUTH_TOKEN not set. AI Service calls will likely fail.');
     }
     if (!this.apiUrl) {
-      console.warn('LLM_API_URL not set. AI Service calls will likely fail.');
+      // This case should ideally not happen with the default
+      console.warn('Backend API URL not set and no default provided.');
     }
   }
 
   /**
-   * Process a screenshot with AI using fetch (Main Process)
-   * Sends screenshot (optional, based on API) and prompt to an LLM API.
+   * Process a screenshot by sending it to the Glintify backend API (Main Process)
    */
   async processScreenshot(
     screenshotPath: string,
     url: string, // Include URL context
     prompt: string
-  ): Promise<string> {
-    if (!this.apiKey || !this.apiUrl) {
-      return 'Error: AI Service not configured (API Key or URL missing)';
+  ): Promise<string> { // Keep returning string for now to fit into Excel cell easily
+    // Use authToken and the backend apiUrl
+    if (!this.authToken || !this.apiUrl) {
+      return 'Error: AI Service not configured (Auth Token or Backend URL missing)';
     }
 
     try {
-      console.log(`Processing screenshot at ${screenshotPath} for ${url} with prompt: "${prompt}"`);
+      console.log(`Sending screenshot ${screenshotPath} for ${url} to backend for prompt: "${prompt}"`);
 
-      // Option 1: Send screenshot as base64 data (Common for multimodal models)
-      // const imageBuffer = await fs.readFile(screenshotPath);
-      // const imageBase64 = imageBuffer.toString('base64');
+      // Read screenshot as base64
+      const imageBuffer = await fs.readFile(screenshotPath);
+      const imageBase64 = imageBuffer.toString('base64');
+      const imageMediaType = 'image/png'; // Assuming PNG format from webService
 
-      // Option 2: Send screenshot path/URL (If API can access it - less common)
-      // const screenshotUrl = `file://${screenshotPath}`; // Might not work depending on API/server setup
-
-      // Construct the request body according to your specific LLM API
-      // This is a GENERIC example, replace with actual API requirements
+      // Construct the request body for the backend API
       const requestBody = {
-        model: "your-llm-model-name", // Replace with your model
         prompt: prompt,
-        context: { // Provide context
-          website_url: url,
-          // If sending image data:
-          // image_data: imageBase64,
-          // image_media_type: 'image/png',
-          // If sending image path/URL (less likely to work):
-          // screenshot_location: screenshotPath 
-        },
-        response_format: { type: "json_object" }, // Request JSON if supported
-        max_tokens: 150 // Example parameter
+        website_url: url,
+        image_data: imageBase64,
+        image_media_type: imageMediaType,
+        // Add any other relevant context if needed by the backend
       };
 
-      console.log(`Sending request to LLM API: ${this.apiUrl}`);
+      console.log(`Sending request to Backend API: ${this.apiUrl}`);
       const response = await fetch(this.apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.apiKey}`
+          'Authorization': `Bearer ${this.authToken}` // Use the backend auth token
         },
         body: JSON.stringify(requestBody)
       });
 
       if (!response.ok) {
-        const errorBody = await response.text();
-        throw new Error(`LLM API request failed with status ${response.status}: ${errorBody}`);
+        let errorBody = 'Could not read error body';
+        try {
+           errorBody = await response.text();
+        } catch (e) {
+          // Ignore if reading text fails
+        }
+        throw new Error(`Backend API request failed with status ${response.status}: ${errorBody}`);
       }
 
-      const result = await response.json() as LlmResponse;
-      console.log('Received response from LLM API.');
+      const result = await response.json() as BackendApiResponse;
+      console.log('Received response from Backend API.');
 
       // Extract the relevant information from the JSON response
-      // Adjust based on your actual LlmResponse interface and API output
       if (result.error) {
         return `AI Error: ${result.error}`;
       }
       if (result.result) {
-        return result.result; // Assuming the main text is in a 'result' field
+        // The backend should return the structured data.
+        // For simplicity in placing into an Excel cell, stringify it.
+        // Ideally, the backend might return pre-formatted strings,
+        // or ExcelHandler could be updated to handle structured objects.
+        if (typeof result.result === 'object') {
+            return JSON.stringify(result.result);
+        }
+        return String(result.result);
       }
-      
+
       // Fallback if the expected fields aren't present
       return JSON.stringify(result); // Return the whole JSON as a string
 
     } catch (error: unknown) {
-      console.error('Error processing screenshot with AI:', error);
+      console.error('Error processing screenshot via backend API:', error);
       const errorMessage = error instanceof Error ? error.message : String(error);
       // Return a specific error message to be placed in the Excel cell
       return `Error processing: ${errorMessage}`;
