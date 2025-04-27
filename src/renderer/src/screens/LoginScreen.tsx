@@ -38,7 +38,7 @@ const LoginScreen = () => {
     <BaseWrapper>
       <div className="bg-white p-8 rounded-lg shadow-sm border border-gray-200 max-w-md w-full text-gray-800">
         <div className="text-center mb-6">
-          <h1 className="text-2xl font-bold text-indigo-600">Glintify</h1>
+          <h1 className="text-2xl font-bold text-indigo-600">SpreadSheetFlow.com</h1>
           <p className="text-gray-600 mt-2">Sign in to continue</p>
         </div>
         

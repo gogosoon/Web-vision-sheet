@@ -3,7 +3,7 @@ export const WEB_APP_URL = 'http://localhost:3000' // Replace with your actual d
 export const API_URL = `${WEB_APP_URL}/api`
 
 // Custom protocol for deep linking
-export const APP_PROTOCOL = 'glintify'
+export const APP_PROTOCOL = 'spreadsheetflow'
 
 // Auth-related URLs
 export const DESKTOP_LOGIN_URL = `${WEB_APP_URL}/desktop-login`

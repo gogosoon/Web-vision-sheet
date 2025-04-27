@@ -21,7 +21,7 @@ import * as url from 'url'
 import fetch from 'node-fetch'
 
 // Define the app protocol (same as in constants.ts in renderer)
-const APP_PROTOCOL = 'glintify'
+const APP_PROTOCOL = 'spreadsheetflow'
 
 // Define the API URLs (same as in constants.ts in renderer)
 const WEB_APP_URL = 'http://localhost:3000'
@@ -43,7 +43,7 @@ interface AppConfig {
 // Create the workspace directory if it doesn't exist
 function getWorkspacePath() {
   const documentsPath = path.join(homedir(), 'Documents')
-  const workspacePath = path.join(documentsPath, 'Glintify Workspace')
+  const workspacePath = path.join(documentsPath, 'SpreadSheetFlow Workspace')
 
   if (!fs.existsSync(workspacePath)) {
     try {

@@ -270,7 +270,7 @@ export const useAppStore = create<AppState>()(
       }
     }),
     {
-      name: 'glintify-storage',
+      name: 'spreadsheetflow-storage',
       partialize: (state) => ({ 
         auth: { token: state.auth.token }
       })

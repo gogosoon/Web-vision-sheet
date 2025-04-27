@@ -64,7 +64,7 @@ export class AiService {
   }
 
   /**
-   * Process a screenshot by sending it to the Glintify backend API (Main Process)
+   * Process a screenshot by sending it to the backend API (Main Process)
    */
   async processScreenshot(
     screenshotPath: string,
