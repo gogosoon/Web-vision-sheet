@@ -236,7 +236,7 @@ const HomeScreen: React.FC = () => {
             <div className="w-full border-t border-gray-200"></div>
           </div>
           <div className="relative flex justify-center text-sm">
-            <span className="px-3 bg-white text-gray-500">Excel File Configuration</span>
+            <span className="px-3 bg-white text-gray-500">Excel File Import</span>
           </div>
         </div>
 

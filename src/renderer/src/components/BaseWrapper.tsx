@@ -14,7 +14,7 @@ const BaseWrapper: React.FC<BaseWrapperProps> = ({ children }) => {
       <header className="py-3 px-6 bg-white shadow-sm flex justify-between items-center border-b border-gray-200">
         <div className="flex items-center">
           <h1 className="text-xl font-bold text-indigo-600">SpreadSheetFlow.com</h1>
-          <span className="ml-2 text-xs px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full">Desktop</span>
+          {/* <span className="ml-2 text-xs px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full">Desktop</span> */}
         </div>
         {auth.authenticated && (
           <UserProfile />
