@@ -11,6 +11,7 @@ import { homedir } from 'os'
 import { ExcelHandler } from './excelService'
 import { WebService } from './webService'
 import { AiService, AiPrompt } from './aiService'
+import { tokenStorage } from './tokenStorage' // Import the token storage
 
 // Import custom protocols
 import { protocol } from 'electron'
@@ -74,6 +75,13 @@ const parseAuthToken = (callbackUrl: string): string | null => {
     const parsed = new URL(callbackUrl)
     // Extract token from query parameters
     const token = parsed.searchParams.get('token')
+    
+    // Store token in persistent storage if valid
+    if (token) {
+      tokenStorage.saveToken(token)
+        .catch(err => console.error('Failed to save token to storage:', err))
+    }
+    
     return token
   } catch (error) {
     console.error('Error parsing auth callback URL:', error)
@@ -179,6 +187,9 @@ function createWindow(): void {
           error: data.error || 'Failed to validate token' 
         }
       }
+      
+      // Token is valid, store it securely
+      await tokenStorage.saveToken(token)
       
       // Record login time
       fetch(`${API_URL}/auth/record-login`, {
@@ -521,9 +532,12 @@ function setupIpcHandlers() {
       const configDataStr = await fs.promises.readFile(configFilePath, 'utf-8')
       const config: AppConfig = JSON.parse(configDataStr)
 
+      // Get stored token
+      const storedToken = await tokenStorage.getToken()
+
       // Create instances of services
       const excelHandler = new ExcelHandler(currentMainWindow) // Pass window for progress updates
-      const aiService = new AiService() // Reads config from env vars
+      const aiService = new AiService(storedToken || undefined) // Use stored token with null check
       // webServiceInstance is already created and managed globally
       if (!webServiceInstance) {
         throw new Error('WebService instance not available')
@@ -589,6 +603,50 @@ function setupIpcHandlers() {
         errorMessage = error.message
       }
       return { success: false, error: errorMessage }
+    }
+  })
+
+  // Add new token management IPC handlers
+  ipcMain.handle('auth:getStoredToken', async () => {
+    try {
+      const token = await tokenStorage.getToken()
+      return { success: true, token }
+    } catch (error) {
+      console.error('Error retrieving stored token:', error)
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Unknown error retrieving token'
+      }
+    }
+  })
+
+  ipcMain.handle('auth:storeToken', async (_, token) => {
+    if (!token) {
+      return { success: false, error: 'No token provided' }
+    }
+    
+    try {
+      await tokenStorage.saveToken(token)
+      return { success: true }
+    } catch (error) {
+      console.error('Error storing token:', error)
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Unknown error storing token' 
+      }
+    }
+  })
+
+  ipcMain.handle('auth:clearToken', async () => {
+    try {
+      await tokenStorage.clearToken()
+      return { success: true }
+    } catch (error) {
+      console.error('Error clearing token:', error)
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Unknown error clearing token'
+      }
     }
   })
 }

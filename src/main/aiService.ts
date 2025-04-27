@@ -4,6 +4,7 @@
  */
 import fs from 'node:fs/promises'; // To read screenshot file for sending
 import path from 'node:path';
+import { tokenStorage } from './tokenStorage'; // Import token storage
 
 // Define the structure for AI prompts, consistent with ExcelHandler
 export interface AiPrompt {
@@ -30,17 +31,35 @@ export class AiService {
   private authToken: string | undefined; // Added for backend authentication
 
   constructor(authToken?: string, apiUrl?: string) {
-    // Assuming authToken is retrieved from secure storage or main process state
+    // Use provided token or fallback to env
     this.authToken = authToken || process.env.BACKEND_AUTH_TOKEN;
     // Renamed env var for clarity
     this.apiUrl = apiUrl || process.env.BACKEND_API_URL || 'http://localhost:3000/api/ai/parse-screenshot'; // Default backend URL
 
     if (!this.authToken) {
-      console.warn('BACKEND_AUTH_TOKEN not set. AI Service calls will likely fail.');
+      console.warn('Auth token not provided and BACKEND_AUTH_TOKEN not set. Will attempt to use stored token.');
     }
     if (!this.apiUrl) {
       // This case should ideally not happen with the default
       console.warn('Backend API URL not set and no default provided.');
+    }
+  }
+
+  /**
+   * Get a valid token, either from instance or from storage
+   */
+  private async getToken(): Promise<string | null> {
+    // Use token provided in constructor if available
+    if (this.authToken) {
+      return this.authToken;
+    }
+    
+    // Otherwise try to get from storage
+    try {
+      return await tokenStorage.getToken();
+    } catch (error) {
+      console.error('Error retrieving token from storage:', error);
+      return null;
     }
   }
 
@@ -52,8 +71,10 @@ export class AiService {
     url: string, // Include URL context
     prompt: string
   ): Promise<string> { // Keep returning string for now to fit into Excel cell easily
-    // Use authToken and the backend apiUrl
-    if (!this.authToken || !this.apiUrl) {
+    // Get the token - either from constructor or from storage
+    const token = await this.getToken();
+    
+    if (!token || !this.apiUrl) {
       return 'Error: AI Service not configured (Auth Token or Backend URL missing)';
     }
 
@@ -79,7 +100,7 @@ export class AiService {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.authToken}` // Use the backend auth token
+          'Authorization': `Bearer ${token}` // Use the token we retrieved
         },
         body: JSON.stringify(requestBody)
       });
