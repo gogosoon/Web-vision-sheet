@@ -34,7 +34,7 @@ export class AiService {
     // Use provided token or fallback to env
     this.authToken = authToken || process.env.BACKEND_AUTH_TOKEN;
     // Renamed env var for clarity
-    this.apiUrl = apiUrl || process.env.BACKEND_API_URL || 'http://localhost:3000/api/ai/parse-screenshot'; // Default backend URL
+    this.apiUrl = apiUrl; // Default backend URL
 
     if (!this.authToken) {
       console.warn('Auth token not provided and BACKEND_AUTH_TOKEN not set. Will attempt to use stored token.');

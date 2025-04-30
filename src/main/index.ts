@@ -16,6 +16,8 @@ import { tokenStorage } from './tokenStorage' // Import the token storage
 // Import custom protocols
 import { protocol } from 'electron'
 import * as url from 'url'
+import dotenv from 'dotenv'
+dotenv.config()
 
 // Import node-fetch
 import fetch from 'node-fetch'
@@ -24,9 +26,11 @@ import fetch from 'node-fetch'
 const APP_PROTOCOL = 'spreadsheetflow'
 
 // Define the API URLs (same as in constants.ts in renderer)
-const WEB_APP_URL = 'http://localhost:3000'
+const WEB_APP_URL = process.env.VITE_WEB_APP_URL
 const API_URL = `${WEB_APP_URL}/api`
 const VALIDATE_TOKEN_ENDPOINT = `${API_URL}/auth/validate-desktop-token`
+
+console.log('API URL:', API_URL)
 
 let mainWindow: BrowserWindow | null = null // Keep track of the main window
 let webServiceInstance: WebService | null = null // Keep track of WebService instance

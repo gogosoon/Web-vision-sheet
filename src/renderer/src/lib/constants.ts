@@ -1,5 +1,5 @@
 // Web app URL and API endpoints
-export const WEB_APP_URL = 'http://localhost:3000' // Replace with your actual domain
+export const WEB_APP_URL = import.meta.env.VITE_WEB_APP_URL // Replace with your actual domain
 export const API_URL = `${WEB_APP_URL}/api`
 
 // Custom protocol for deep linking
