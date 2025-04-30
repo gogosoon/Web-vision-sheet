@@ -3,10 +3,13 @@
  * This implementation needs actual Puppeteer logic
  */
 import { app } from 'electron'; // <-- Add app import
-import puppeteer, { Browser, Page } from 'puppeteer';
+import { Browser, Page } from 'puppeteer'; // <-- Import Browser and Page types
+import puppeteer from 'puppeteer-extra';
+import StealthPlugin from 'puppeteer-extra-plugin-stealth'; // <-- Import stealth plugin
 import fs from 'node:fs'; // <-- Use fs directly
 import path from 'node:path'; // <-- Add path import
 
+puppeteer.use(StealthPlugin()); // <-- Use stealth plugin
 export class WebService {
   private browser: Browser | null = null;
   private profilePath: string; // <-- Store profile path
@@ -69,7 +72,8 @@ export class WebService {
       }
 
       // Use ensureBrowser(false) for headless screenshots
-      const browser = await this.ensureBrowser(false);
+      // for now hardcoded to not use headless
+      const browser = await this.ensureBrowser(true);
       page = await browser.newPage();
       
       // Set viewport for full page screenshot if needed, or default
