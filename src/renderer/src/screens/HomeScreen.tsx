@@ -302,15 +302,6 @@ const HomeScreen: React.FC = () => {
                 <label htmlFor="websiteColumn" className="block text-sm font-medium text-gray-700">
                   Column containing website URLs:
                 </label>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => setUploadStep('initial')}
-                  className="text-xs flex items-center gap-1"
-                >
-                  <FileSpreadsheet size={14} />
-                  Select Different File
-                </Button>
               </div>
               <select
                 id="websiteColumn"
@@ -389,7 +380,7 @@ const HomeScreen: React.FC = () => {
             )}
             
             {/* Continue Button */}
-            <div className="mt-auto pt-6 text-center">
+            <div className="mt-auto pt-2 text-center">
                <Button 
                   onClick={startProcessing} 
                   disabled={loading || !excelFile.websiteColumn || excelFile.aiPrompts.length === 0}
@@ -398,6 +389,20 @@ const HomeScreen: React.FC = () => {
                   Start Processing
               </Button>
             </div>
+            <div className="relative flex justify-center text-sm">
+            <span className="px-3 bg-white text-gray-500">or</span>
+          </div>
+          <div className="mt-auto pt-2 text-center">
+            <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setUploadStep('initial')}
+                  
+                >
+                  <FileSpreadsheet size={14} />
+                  Select Different File
+                </Button>
+                </div>
           </div>
         )}
       </div>
