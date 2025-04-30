@@ -16,21 +16,11 @@ import { tokenStorage } from './tokenStorage' // Import the token storage
 // Import custom protocols
 import { protocol } from 'electron'
 import * as url from 'url'
-import dotenv from 'dotenv'
-dotenv.config()
 
 // Import node-fetch
 import fetch from 'node-fetch'
+import { CONST_ELECTON_APP } from './const'
 
-// Define the app protocol (same as in constants.ts in renderer)
-const APP_PROTOCOL = 'spreadsheetflow'
-
-// Define the API URLs (same as in constants.ts in renderer)
-const WEB_APP_URL = process.env.VITE_WEB_APP_URL
-const API_URL = `${WEB_APP_URL}/api`
-const VALIDATE_TOKEN_ENDPOINT = `${API_URL}/auth/validate-desktop-token`
-
-console.log('API URL:', API_URL)
 
 let mainWindow: BrowserWindow | null = null // Keep track of the main window
 let webServiceInstance: WebService | null = null // Keep track of WebService instance
@@ -64,12 +54,12 @@ function getWorkspacePath() {
 const registerAppProtocol = () => {
   if (process.defaultApp) {
     if (process.argv.length >= 2) {
-      app.setAsDefaultProtocolClient(APP_PROTOCOL, process.execPath, [
+      app.setAsDefaultProtocolClient(CONST_ELECTON_APP.APP_PROTOCOL, process.execPath, [
         join(__dirname, process.argv[1])
       ])
     }
   } else {
-    app.setAsDefaultProtocolClient(APP_PROTOCOL)
+    app.setAsDefaultProtocolClient(CONST_ELECTON_APP.APP_PROTOCOL)
   }
 }
 
@@ -115,11 +105,11 @@ function createWindow(): void {
       responseHeaders: {
         ...details.responseHeaders,
         'Content-Security-Policy': [
-          `default-src 'self' ${WEB_APP_URL} ${API_URL};` +
-          `connect-src 'self' ${WEB_APP_URL} ${API_URL};` +
+          `default-src 'self' ${CONST_ELECTON_APP.WEB_APP_URL} ${CONST_ELECTON_APP.API_URL};` +
+          `connect-src 'self' ${CONST_ELECTON_APP.WEB_APP_URL} ${CONST_ELECTON_APP.API_URL};` +
           `script-src 'self' 'unsafe-inline' 'unsafe-eval';` +
           `style-src 'self' 'unsafe-inline';` +
-          `img-src 'self' data: ${WEB_APP_URL} ${API_URL};` +
+          `img-src 'self' data: ${CONST_ELECTON_APP.WEB_APP_URL} ${CONST_ELECTON_APP.API_URL};` +
           `font-src 'self' data:;`
         ]
       }
@@ -155,7 +145,7 @@ function createWindow(): void {
   app.on('open-url', (event, url) => {
     event.preventDefault()
     
-    if (url.startsWith(`${APP_PROTOCOL}://auth-callback`)) {
+    if (url.startsWith(`${CONST_ELECTON_APP.APP_PROTOCOL}://auth-callback`)) {
       const token = parseAuthToken(url)
       if (token && mainWindow) {
         mainWindow.webContents.send('auth-callback', token)
@@ -169,13 +159,13 @@ function createWindow(): void {
   })
 
   ipcMain.handle('auth:check-protocol-registration', () => {
-    return app.isDefaultProtocolClient(APP_PROTOCOL)
+    return app.isDefaultProtocolClient(CONST_ELECTON_APP.APP_PROTOCOL)
   })
   
   // Handle token validation
   ipcMain.handle('auth:validate-token', async (_, token) => {
     try {
-      const response = await fetch(VALIDATE_TOKEN_ENDPOINT, {
+      const response = await fetch(CONST_ELECTON_APP.VALIDATE_TOKEN_ENDPOINT, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -196,7 +186,7 @@ function createWindow(): void {
       await tokenStorage.saveToken(token)
       
       // Record login time
-      fetch(`${API_URL}/auth/record-login`, {
+      fetch(`${CONST_ELECTON_APP.API_URL}/auth/record-login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -222,7 +212,7 @@ function createWindow(): void {
   // Handle getting user profile
   ipcMain.handle('auth:get-user-profile', async (_, token) => {
     try {
-      const response = await fetch(`${API_URL}/profile`, {
+      const response = await fetch(`${CONST_ELECTON_APP.API_URL}/profile`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`

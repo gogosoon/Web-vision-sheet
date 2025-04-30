@@ -5,6 +5,7 @@
 import fs from 'node:fs/promises'; // To read screenshot file for sending
 import path from 'node:path';
 import { tokenStorage } from './tokenStorage'; // Import token storage
+import { CONST_ELECTON_APP } from './const';
 
 // Define the structure for AI prompts, consistent with ExcelHandler
 export interface AiPrompt {
@@ -27,21 +28,15 @@ interface BackendApiResponse {
 
 export class AiService {
   // Removed apiKey, using authToken for backend API
-  private apiUrl: string | undefined;
   private authToken: string | undefined; // Added for backend authentication
 
-  constructor(authToken?: string, apiUrl?: string) {
+  constructor(authToken?: string) {
     // Use provided token or fallback to env
-    this.authToken = authToken || process.env.BACKEND_AUTH_TOKEN;
-    // Renamed env var for clarity
-    this.apiUrl = apiUrl; // Default backend URL
+    this.authToken = authToken;
+    
 
     if (!this.authToken) {
       console.warn('Auth token not provided and BACKEND_AUTH_TOKEN not set. Will attempt to use stored token.');
-    }
-    if (!this.apiUrl) {
-      // This case should ideally not happen with the default
-      console.warn('Backend API URL not set and no default provided.');
     }
   }
 
@@ -74,8 +69,8 @@ export class AiService {
     // Get the token - either from constructor or from storage
     const token = await this.getToken();
     
-    if (!token || !this.apiUrl) {
-      return 'Error: AI Service not configured (Auth Token or Backend URL missing)';
+    if (!token) {
+      return 'Error: AI Service not configured (Auth Token missing)';
     }
 
     try {
@@ -95,8 +90,7 @@ export class AiService {
         // Add any other relevant context if needed by the backend
       };
 
-      console.log(`Sending request to Backend API: ${this.apiUrl}`);
-      const response = await fetch(this.apiUrl, {
+      const response = await fetch(CONST_ELECTON_APP.API_URL+"/ai/parse-screenshot", {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
