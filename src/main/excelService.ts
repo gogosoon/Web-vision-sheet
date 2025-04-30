@@ -124,12 +124,21 @@ export class ExcelHandler { // Renamed class slightly
       const row = worksheet.getRow(rowIndex);
 
       // Get website URL
-      const websiteUrl = row.getCell(websiteColumnIndex).value?.toString()?.trim() || ''
+      let websiteUrl: any = row.getCell(websiteColumnIndex).value
+      if(typeof websiteUrl === 'object' && websiteUrl?.text !== null) {
+        websiteUrl = websiteUrl?.text;
+      } else if (typeof websiteUrl === 'string') {
+        websiteUrl = websiteUrl
+      } else{
+        // console.log("webhsiteUrl skipping", websiteUrl)
+        logs.push(`Row ${rowIndex}: Empty website URL, skipping...`)
+        continue;
+      }
       if (!websiteUrl) {
         logs.push(`Row ${rowIndex}: Empty website URL, skipping...`)
         continue
       }
-      
+      // console.log("websiteUrl", websiteUrl)
       // Send progress update
       this.sendProgress({ 
         currentRowIndex: progressRowIndex, 
@@ -155,6 +164,7 @@ export class ExcelHandler { // Renamed class slightly
         // const content = await WebService.extractContent(websiteUrl)
         
         // Process each AI prompt
+        
         for (let promptIndex = 0; promptIndex < aiPrompts.length; promptIndex++) {
           const prompt = aiPrompts[promptIndex]
           logs.push(`Row ${rowIndex}: Processing prompt "${prompt.prompt}"...`)
