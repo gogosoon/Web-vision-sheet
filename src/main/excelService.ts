@@ -95,6 +95,7 @@ export class ExcelHandler { // Renamed class slightly
     const headerRow = worksheet.getRow(1);
     let startColumn = headerRow.cellCount + 1; // Start adding after the last existing cell
 
+    // console.log("aiPrompts", aiPrompts);
     aiPrompts.forEach(prompt => {
       const newColumnName = prompt.columnName
       // Ensure we target the correct cell index for the new column
@@ -165,25 +166,23 @@ export class ExcelHandler { // Renamed class slightly
         
         // Process each AI prompt
         
+        // Process the content with AI (Use passed AiService instance)
+        const aiResult = await aiService.processScreenshot(
+          screenshotPath,
+          websiteUrl,
+          aiPrompts
+        )
+        
         for (let promptIndex = 0; promptIndex < aiPrompts.length; promptIndex++) {
           const prompt = aiPrompts[promptIndex]
           logs.push(`Row ${rowIndex}: Processing prompt "${prompt.prompt}"...`)
-          
-          // Process the content with AI (Use passed AiService instance)
-          const aiResult = await aiService.processScreenshot(
-            screenshotPath,
-            websiteUrl,
-            prompt.prompt
-          )
-          
           logs.push(`Row ${rowIndex}: AI generated result for "${prompt.columnName}"`)
           
           // Calculate the correct column index to add the result
           // This should correspond to the columns added earlier
           const resultColumnIndex = (worksheet.columnCount - aiPrompts.length) + promptIndex + 1;
-          row.getCell(resultColumnIndex).value = aiResult
+          row.getCell(resultColumnIndex).value = aiResult?.[prompt.columnName] || ``;
         }
-        
         logs.push(`Row ${rowIndex}: Processing completed`)
       } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : String(error)

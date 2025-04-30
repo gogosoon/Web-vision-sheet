@@ -1,7 +1,15 @@
 import React, { useState, useEffect } from 'react'
 import { useAppStore } from '@/lib/store'
 import { Button } from '@/components/button'
-import { Terminal, ChevronDown, ChevronUp, CheckCircle, XCircle, AlertCircle, Download } from 'lucide-react'
+import {
+  Terminal,
+  ChevronDown,
+  ChevronUp,
+  CheckCircle,
+  XCircle,
+  AlertCircle,
+  Download
+} from 'lucide-react'
 // import { ExcelService } from '@/lib/excelService' // Removed: Logic moved to main process
 import { toast } from 'react-hot-toast'
 import type { ProcessingStats } from '@/lib/store'
@@ -51,46 +59,45 @@ const ProcessingScreen: React.FC = () => {
 
     return 5 // Small progress indication while starting
   }
-   const handleDownload = async () => {
-      if (!processingStats.enrichedFilePath) {
-        toast.error("No enriched file available")
-        return
-      }
-      
-      try {
-        
-        // Get the workspace path and enriched file name
-        const workspacePath = await window.api.path.dirname(processingStats.enrichedFilePath)
-        const fileName = await window.api.path.basename(processingStats.enrichedFilePath)
-        
-        // Set up save dialog default path
-        const documentsPath = await window.api.app.getWorkspacePath()
-        const defaultPath = await window.api.path.join(documentsPath, fileName)
-        
-        // Show the save dialog
-        const savePath = await window.api.dialog.saveFile({
-          defaultPath,
-          filters: [{ name: 'Excel Files', extensions: ['xlsx'] }]
-        })
-        
-        if (savePath) {
-          // Copy the file
-          const result = await window.api.file.copyFile(processingStats.enrichedFilePath, savePath)
-          
-          if (result.success) {
-            toast.success('File saved successfully')
-          } else {
-            toast.error(`Failed to save file: ${result.error}`)
-          }
-        }
-      } catch (error: unknown) {
-        console.error('Error saving file:', error)
-        const errorMessage = error instanceof Error ? error.message : String(error)
-        toast.error(`Failed to save file: ${errorMessage}`)
-      } finally {
-        // setLoading(false)
-      }
+  const handleDownload = async () => {
+    if (!processingStats.enrichedFilePath) {
+      toast.error('No enriched file available')
+      return
     }
+
+    try {
+      // Get the workspace path and enriched file name
+      const workspacePath = await window.api.path.dirname(processingStats.enrichedFilePath)
+      const fileName = await window.api.path.basename(processingStats.enrichedFilePath)
+
+      // Set up save dialog default path
+      const documentsPath = await window.api.app.getWorkspacePath()
+      const defaultPath = await window.api.path.join(documentsPath, fileName)
+
+      // Show the save dialog
+      const savePath = await window.api.dialog.saveFile({
+        defaultPath,
+        filters: [{ name: 'Excel Files', extensions: ['xlsx'] }]
+      })
+
+      if (savePath) {
+        // Copy the file
+        const result = await window.api.file.copyFile(processingStats.enrichedFilePath, savePath)
+
+        if (result.success) {
+          toast.success('File saved successfully')
+        } else {
+          toast.error(`Failed to save file: ${result.error}`)
+        }
+      }
+    } catch (error: unknown) {
+      console.error('Error saving file:', error)
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      toast.error(`Failed to save file: ${errorMessage}`)
+    } finally {
+      // setLoading(false)
+    }
+  }
 
   // Format step name for display
   const formatStepName = (step: ProcessingStats['currentStep']) => {
@@ -325,10 +332,7 @@ const ProcessingScreen: React.FC = () => {
                   <Button variant="default" onClick={openOutputFolder}>
                     Open Output Folder
                   </Button>
-                  <Button
-                    onClick={handleDownload}
-                    disabled={!processingStats.enrichedFilePath}
-                  >
+                  <Button onClick={handleDownload} disabled={!processingStats.enrichedFilePath}>
                     <Download size={18} />
                     Download Excel
                   </Button>
