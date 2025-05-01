@@ -32,7 +32,9 @@ jobs:
       - name: install-extra-deps
         if: matrix.os == 'macos-latest'
         run: npm install @rollup/rollup-darwin-arm64
-      
+      - name: install-extra-deps
+        if: matrix.os == 'macos-latest'
+        run: npm install dmg-license
       - name: build-mac
         if: matrix.os == 'macos-latest'
         run: npm run build:mac
