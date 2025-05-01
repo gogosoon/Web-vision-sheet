@@ -8,6 +8,7 @@ import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth'; // <-- Import stealth plugin
 import fs from 'node:fs'; // <-- Use fs directly
 import path from 'node:path'; // <-- Add path import
+const findChrome = require('chrome-finder');
 
 puppeteer.use(StealthPlugin()); // <-- Use stealth plugin
 export class WebService {
@@ -31,9 +32,11 @@ export class WebService {
     if (!this.browser || !this.browser.isConnected()) {
       console.log(`Launching Puppeteer browser (Headed: ${headedMode})...`);
       try {
+        let chromePath = findChrome()
         this.browser = await puppeteer.launch({
           headless: !headedMode, // <-- Use headedMode flag
-          userDataDir: this.profilePath // <-- Use the profile path
+          userDataDir: this.profilePath, // <-- Use the profile path
+          executablePath: chromePath
         });
         console.log(`Puppeteer browser launched with profile: ${this.profilePath}`);
       } catch (error) {
