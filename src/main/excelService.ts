@@ -9,6 +9,29 @@ import { BrowserWindow } from 'electron' // For sending progress
 type ProgressCallback = (stats: { currentRowIndex: number, totalRows: number, currentLogMessage: string }) => void;
 
 
+function excel_value_to_string(value) {
+  let displayValue = ''
+  if (value === null || value === undefined) {
+    displayValue = ''
+  } else if (value instanceof Date) {
+    displayValue = value.toISOString()
+  } else if (typeof value === 'object') {
+    if (value.text && typeof value.text === 'string') {
+      displayValue = value.text
+    }
+    if (value.text && typeof value.text === 'object' && value.text.richText) {
+      try {
+        displayValue = value.text.richText?.map((text) => text.text).join('')
+      } catch (e) {
+        displayValue = '[Complex Value]'
+      }
+    }
+  } else {
+    displayValue = String(value)
+  }
+  return displayValue
+}
+
 /**
  * Service for Excel file operations (Main Process)
  */
@@ -126,15 +149,7 @@ export class ExcelHandler { // Renamed class slightly
 
       // Get website URL
       let websiteUrl: any = row.getCell(websiteColumnIndex).value
-      if(typeof websiteUrl === 'object' && websiteUrl?.text !== null) {
-        websiteUrl = websiteUrl?.text;
-      } else if (typeof websiteUrl === 'string') {
-        websiteUrl = websiteUrl
-      } else{
-        // console.log("webhsiteUrl skipping", websiteUrl)
-        logs.push(`Row ${rowIndex}: Empty website URL, skipping...`)
-        continue;
-      }
+      websiteUrl = excel_value_to_string(websiteUrl)
       if (!websiteUrl) {
         logs.push(`Row ${rowIndex}: Empty website URL, skipping...`)
         continue
