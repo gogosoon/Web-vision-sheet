@@ -5,8 +5,6 @@ import { WebService } from './webService' // Adjusted import path assumption
 import { AiService } from './aiService' // Adjusted import path assumption
 import { BrowserWindow } from 'electron' // For sending progress
 
-// Define a type for the progress callback, matching the webContents.send signature
-type ProgressCallback = (stats: { currentRowIndex: number, totalRows: number, currentLogMessage: string }) => void;
 
 
 function excel_value_to_string(value) {

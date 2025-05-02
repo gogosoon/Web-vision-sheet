@@ -4,7 +4,6 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import fs from 'fs'
 import path from 'path'
-import os from 'os'
 import { homedir } from 'os'
 
 // Import our main process services
@@ -13,9 +12,7 @@ import { WebService } from './webService'
 import { AiService, AiPrompt } from './aiService'
 import { tokenStorage } from './tokenStorage' // Import the token storage
 
-// Import custom protocols
-import { protocol } from 'electron'
-import * as url from 'url'
+
 
 // Import node-fetch
 import fetch from 'node-fetch'

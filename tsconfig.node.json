@@ -5,6 +5,7 @@
     "composite": true,
     "types": ["electron-vite/node"],
     "moduleResolution": "bundler",
-    "module": "ESNext"
+    "module": "ESNext",
+    "noUnusedLocals": false,
   }
 }
