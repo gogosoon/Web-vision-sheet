@@ -38,6 +38,9 @@ jobs:
       - name: build-mac
         if: matrix.os == 'macos-latest'
         run: npm run build:mac
+      - name: build-win
+        if: matrix.os == 'windows-latest'
+        run: npm run build:win
 
       - name: list-all-dist-files-windows
         if: matrix.os == 'windows-latest'
@@ -50,10 +53,6 @@ jobs:
       - name: list-all-dist-files-linux
         if: matrix.os == 'ubuntu-latest'
         run: ls dist
-        
-      - name: build-win
-        if: matrix.os == 'windows-latest'
-        run: npm run build:win
 
       - name: release
         uses: softprops/action-gh-release@v1
