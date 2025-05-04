@@ -2,7 +2,7 @@
  * Service for web-related operations (Main Process)
  * This implementation needs actual Puppeteer logic
  */
-import { app } from 'electron' // <-- Add app import
+import { app, dialog } from 'electron' // <-- Add dialog import
 import { Browser, Page } from 'puppeteer' // <-- Import Browser and Page types
 import puppeteer from 'puppeteer-extra'
 import StealthPlugin from 'puppeteer-extra-plugin-stealth' // <-- Import stealth plugin
@@ -34,7 +34,18 @@ export class WebService {
     if (!this.browser || !this.browser.isConnected()) {
       console.log(`Launching Puppeteer browser (Headed: ${headedMode})...`)
       try {
-        let chromePath = findChrome()
+        let chromePath;
+        try {
+          chromePath = findChrome()
+        } catch (error) {
+          console.error('Failed to find Chrome installation:', error)
+          dialog.showErrorBox(
+            'Chrome Not Found',
+            'Google Chrome is not installed in your system. Please install Google Chrome and try again.'
+          )
+          throw new Error('Google Chrome is not installed in your system. Please install Google Chrome and try again.')
+        }
+        
         this.browser = await puppeteer.launch({
           headless: !headedMode, // <-- Use headedMode flag
           userDataDir: this.profilePath, // <-- Use the profile path

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useAppStore } from '../lib/store'
 import { DESKTOP_LOGIN_URL } from '../lib/constants'
 import BaseWrapper from '../components/BaseWrapper'
@@ -7,32 +7,12 @@ const LoginScreen = () => {
   const { auth, login } = useAppStore()
   const [manualToken, setManualToken] = useState('')
   
-  // Function to open browser for login
-  const handleBrowserLogin = async () => {
-    window.api.auth.openBrowserLogin(DESKTOP_LOGIN_URL)
-  }
-  
   // Function to handle manual token submission
   const handleManualLogin = async () => {
     if (manualToken.trim()) {
       await login(manualToken.trim())
     }
   }
-  
-  // Listen for auth callback from main process
-  useEffect(() => {
-    // Set up callback handler
-    const unsubscribe = window.api.auth.onAuthCallback((token) => {
-      if (token) {
-        login(token)
-      }
-    })
-    
-    // Clean up the event listener on unmount
-    return () => {
-      unsubscribe()
-    }
-  }, [login])
   
   return (
     <BaseWrapper>
@@ -49,25 +29,6 @@ const LoginScreen = () => {
         )}
         
         <div className="space-y-4">
-          <button
-            onClick={handleBrowserLogin}
-            disabled={auth.isLoading}
-            className="w-full py-2 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-          >
-            {auth.isLoading ? 'Logging in...' : 'Login / Register'}
-          </button>
-          
-          <div className="relative my-4">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-300"></div>
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white text-gray-500">
-                Or enter token manually
-              </span>
-            </div>
-          </div>
-          
           <div>
             <input
               type="text"

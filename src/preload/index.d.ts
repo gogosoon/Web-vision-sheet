@@ -67,8 +67,6 @@ interface CustomAPI {
     removeAllListeners: () => void;
   };
   auth: {
-    onAuthCallback: (callback: (token: string) => void) => () => void;
-    openBrowserLogin: (url: string) => void;
     checkProtocolRegistration: () => Promise<boolean>;
     validateToken: (token: string) => Promise<IpcResponse<{user: any}>>;
     getUserProfile: (token: string) => Promise<IpcResponse<{user: any}>>;
