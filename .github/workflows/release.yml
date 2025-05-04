@@ -29,16 +29,17 @@ jobs:
           echo "Test file" > test-file.txt
         shell: bash
 
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          aws-access-key-id: ${{ secrets.R2_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
+      - name: Configure AWS CLI for R2
+        run: |
+          aws configure set aws_access_key_id ${{ secrets.R2_ACCESS_KEY_ID }}
+          aws configure set aws_secret_access_key ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          aws configure set region us-east-1
+          aws configure set output json
+        shell: bash
 
       - name: Upload test file to R2
         run: |
-          aws s3 cp test-file.txt s3://${{ secrets.R2_BUCKET }}/test-file.txt --endpoint-url ${{ secrets.R2_ENDPOINT }}
+          aws s3 cp test-file.txt s3://${{ secrets.R2_BUCKET }}/test-file.txt --endpoint-url ${{ secrets.R2_ENDPOINT }} --no-verify-ssl
         shell: bash
 
       # Commented out for initial testing
@@ -88,15 +89,15 @@ jobs:
       #   run: |
       #     # Upload only the installation files
       #     if [ "${{ matrix.os }}" == "windows-latest" ]; then
-      #       aws s3 cp dist/ s3://${{ secrets.R2_BUCKET }}/releases/${{ env.VERSION }}/ --recursive --exclude "*" --include "*.exe" --endpoint-url ${{ secrets.R2_ENDPOINT }}
+      #       aws s3 cp dist/ s3://${{ secrets.R2_BUCKET }}/releases/${{ env.VERSION }}/ --recursive --exclude "*" --include "*.exe" --endpoint-url ${{ secrets.R2_ENDPOINT }} --no-verify-ssl
       #     elif [ "${{ matrix.os }}" == "macos-latest" ]; then
-      #       aws s3 cp dist/ s3://${{ secrets.R2_BUCKET }}/releases/${{ env.VERSION }}/ --recursive --exclude "*" --include "*.dmg" --endpoint-url ${{ secrets.R2_ENDPOINT }}
+      #       aws s3 cp dist/ s3://${{ secrets.R2_BUCKET }}/releases/${{ env.VERSION }}/ --recursive --exclude "*" --include "*.dmg" --endpoint-url ${{ secrets.R2_ENDPOINT }} --no-verify-ssl
       #     elif [ "${{ matrix.os }}" == "ubuntu-latest" ]; then
-      #       aws s3 cp dist/ s3://${{ secrets.R2_BUCKET }}/releases/${{ env.VERSION }}/ --recursive --exclude "*" --include "*.AppImage" --include "*.deb" --endpoint-url ${{ secrets.R2_ENDPOINT }}
+      #       aws s3 cp dist/ s3://${{ secrets.R2_BUCKET }}/releases/${{ env.VERSION }}/ --recursive --exclude "*" --include "*.AppImage" --include "*.deb" --endpoint-url ${{ secrets.R2_ENDPOINT }} --no-verify-ssl
       #     fi
       #   shell: bash
 
       # - name: Upload latest.json to R2
       #   run: |
-      #     aws s3 cp latest.json s3://${{ secrets.R2_BUCKET }}/latest.json --endpoint-url ${{ secrets.R2_ENDPOINT }}
+      #     aws s3 cp latest.json s3://${{ secrets.R2_BUCKET }}/latest.json --endpoint-url ${{ secrets.R2_ENDPOINT }} --no-verify-ssl
       #   shell: bash
