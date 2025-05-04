@@ -3,7 +3,6 @@
  * This simulates using an LLM API (like OpenAI) via fetch
  */
 import fs from 'node:fs/promises' // To read screenshot file for sending
-import path from 'node:path'
 import { tokenStorage } from './tokenStorage' // Import token storage
 import { CONST_ELECTON_APP } from './const'
 

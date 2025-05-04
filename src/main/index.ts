@@ -4,7 +4,6 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import fs from 'fs'
 import path from 'path'
-import os from 'os'
 import { homedir } from 'os'
 
 // Import our main process services
@@ -13,9 +12,7 @@ import { WebService } from './webService'
 import { AiService, AiPrompt } from './aiService'
 import { tokenStorage } from './tokenStorage' // Import the token storage
 
-// Import custom protocols
-import { protocol } from 'electron'
-import * as url from 'url'
+
 
 // Import node-fetch
 import fetch from 'node-fetch'
@@ -48,39 +45,6 @@ function getWorkspacePath() {
   }
 
   return workspacePath
-}
-
-// Register app protocol for deep linking
-const registerAppProtocol = () => {
-  if (process.defaultApp) {
-    if (process.argv.length >= 2) {
-      app.setAsDefaultProtocolClient(CONST_ELECTON_APP.APP_PROTOCOL, process.execPath, [
-        join(__dirname, process.argv[1])
-      ])
-    }
-  } else {
-    app.setAsDefaultProtocolClient(CONST_ELECTON_APP.APP_PROTOCOL)
-  }
-}
-
-// Parse the auth token from the callback URL
-const parseAuthToken = (callbackUrl: string): string | null => {
-  try {
-    const parsed = new URL(callbackUrl)
-    // Extract token from query parameters
-    const token = parsed.searchParams.get('token')
-    
-    // Store token in persistent storage if valid
-    if (token) {
-      tokenStorage.saveToken(token)
-        .catch(err => console.error('Failed to save token to storage:', err))
-    }
-    
-    return token
-  } catch (error) {
-    console.error('Error parsing auth callback URL:', error)
-    return null
-  }
 }
 
 function createWindow(): void {
@@ -141,23 +105,7 @@ function createWindow(): void {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
   }
 
-  // Handle auth-callback protocol
-  app.on('open-url', (event, url) => {
-    event.preventDefault()
-    
-    if (url.startsWith(`${CONST_ELECTON_APP.APP_PROTOCOL}://auth-callback`)) {
-      const token = parseAuthToken(url)
-      if (token && mainWindow) {
-        mainWindow.webContents.send('auth-callback', token)
-      }
-    }
-  })
-
   // IPC Handlers for authentication
-  ipcMain.on('open-browser-login', (_, loginUrl) => {
-    shell.openExternal(loginUrl)
-  })
-
   ipcMain.handle('auth:check-protocol-registration', () => {
     return app.isDefaultProtocolClient(CONST_ELECTON_APP.APP_PROTOCOL)
   })
@@ -261,9 +209,6 @@ app.whenReady().then(() => {
 
   // Set up IPC handlers
   setupIpcHandlers()
-
-  // Register the custom protocol
-  registerAppProtocol()
 
   createWindow()
 
@@ -438,6 +383,7 @@ function setupIpcHandlers() {
     }
   })
 
+  
   // Read Excel file info (using moved service)
   ipcMain.handle('excel:getFileInfo', async (_, filePath) => {
     console.log(`IPC excel:getFileInfo called for path: ${filePath}`)

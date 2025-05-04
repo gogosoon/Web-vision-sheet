@@ -103,3 +103,11 @@ Promt #4:
 1. Create a directory called default_browser_profile in app config directory (if not exist)
 2. Use that directory as profile directory for puppeter
 3. When clicking on "Open Browser for Login (if needed)", Don't open google chrome instead please open the puppeter configured with headed mode and profile directory
+
+
+-------------------
+
+
+1. On the login please remove the button login.... instead just keep the token process alone.... (remove the listner as well)
+2. On the chrome opening, try to findPath of chrome if it throws error, please display that Google Chrome is not installed in your system, fix it
+

@@ -7,6 +7,15 @@
 - Node.js 20+ and npm
 
 
+### Important note for mac
+
+Please install this and make sure you using v22 node version
+
+```
+npm install @rollup/rollup-darwin-arm64
+```
+
+
 ### Building for Production / Release the app
 
 Build the application for your platform:
