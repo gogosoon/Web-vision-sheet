@@ -11,7 +11,7 @@ jobs:
 
     strategy:
       matrix:
-        os: [windows-latest]
+        os: [windows-latest, macos-latest, ubuntu-latest]
 
     steps:
       - name: Check out Git repository
@@ -54,20 +54,37 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: ls dist
 
-      - name: release
-        uses: softprops/action-gh-release@v1
+      - name: Extract version from package.json
+        id: extract_version
+        run: echo "VERSION=$(node -p "require('./package.json').version")" >> $GITHUB_ENV
+        shell: bash
+
+      - name: Create latest.json
+        run: |
+          echo "{\"version\": \"${{ env.VERSION }}\"}" > latest.json
+        shell: bash
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
         with:
-          draft: true
-          files: |
-            dist/*.exe
-            dist/*.zip
-            dist/*.dmg
-            dist/*.AppImage
-            dist/*.snap
-            dist/*.deb
-            dist/*.rpm
-            dist/*.tar.gz
-            dist/*.yml
-            dist/*.blockmap
-        env:
-          GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+          aws-access-key-id: ${{ secrets.R2_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          aws-region: auto
+          endpoint-url: ${{ secrets.R2_ENDPOINT }}
+
+      - name: Upload build artifacts to R2
+        run: |
+          # Upload only the installation files
+          if [ "${{ matrix.os }}" == "windows-latest" ]; then
+            aws s3 cp dist/ s3://${{ secrets.R2_BUCKET }}/releases/${{ env.VERSION }}/ --recursive --exclude "*" --include "*.exe"
+          elif [ "${{ matrix.os }}" == "macos-latest" ]; then
+            aws s3 cp dist/ s3://${{ secrets.R2_BUCKET }}/releases/${{ env.VERSION }}/ --recursive --exclude "*" --include "*.dmg"
+          elif [ "${{ matrix.os }}" == "ubuntu-latest" ]; then
+            aws s3 cp dist/ s3://${{ secrets.R2_BUCKET }}/releases/${{ env.VERSION }}/ --recursive --exclude "*" --include "*.AppImage" --include "*.deb"
+          fi
+        shell: bash
+
+      - name: Upload latest.json to R2
+        run: |
+          aws s3 cp latest.json s3://${{ secrets.R2_BUCKET }}/latest.json
+        shell: bash
