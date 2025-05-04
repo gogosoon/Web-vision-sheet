@@ -11,9 +11,7 @@ jobs:
 
     strategy:
       matrix:
-        os: [windows-latest]
-        # Commented out other OS for quick testing
-        # os: [windows-latest, macos-latest, ubuntu-latest]
+        os: [windows-latest, macos-latest, ubuntu-latest]
 
     steps:
       - name: Check out Git repository
@@ -24,11 +22,6 @@ jobs:
         with:
           node-version: 20
 
-      - name: Test Simple File Upload
-        run: |
-          echo "Test file" > test-file.txt
-        shell: bash
-
       - name: Configure AWS CLI for R2
         run: |
           aws configure set aws_access_key_id ${{ secrets.R2_ACCESS_KEY_ID }}
@@ -37,75 +30,69 @@ jobs:
           aws configure set output json
         shell: bash
 
-      - name: Upload test file to R2
-        run: |
-          aws s3api put-object --bucket ${{ secrets.R2_BUCKET }} --key test.txt --body test-file.txt --endpoint-url ${{ secrets.R2_ENDPOINT }}  --checksum-algorithm CRC32
+      - name: Install Dependencies
+        run: npm install
+
+      - name: build-linux
+        if: matrix.os == 'ubuntu-latest'
+        run: npm run build:linux
+
+      - name: install-extra-deps
+        if: matrix.os == 'macos-latest'
+        run: npm install @rollup/rollup-darwin-arm64
+      - name: install-extra-deps
+        if: matrix.os == 'macos-latest'
+        run: npm install dmg-license
+      - name: build-mac
+        if: matrix.os == 'macos-latest'
+        run: npm run build:mac
+      - name: build-win
+        if: matrix.os == 'windows-latest'
+        run: npm run build:win
+
+      - name: list-all-dist-files-windows
+        if: matrix.os == 'windows-latest'
+        run: dir dist
+
+      - name: list-all-dist-files-mac
+        if: matrix.os == 'macos-latest'
+        run: ls dist
+
+      - name: list-all-dist-files-linux
+        if: matrix.os == 'ubuntu-latest'
+        run: ls dist
+
+      - name: Extract version from package.json
+        id: extract_version
+        run: echo "VERSION=$(node -p "require('./package.json').version")" >> $GITHUB_ENV
         shell: bash
 
-      # Commented out for initial testing
-      # - name: Install Dependencies
-      #   run: npm install
+      - name: Create latest.json
+        run: |
+          echo "{\"version\": \"${{ env.VERSION }}\"}" > latest.json
+        shell: bash
 
-      # - name: build-linux
-      #   if: matrix.os == 'ubuntu-latest'
-      #   run: npm run build:linux
+      - name: Upload build artifacts to R2
+        run: |
+          # Upload only the installation files
+          if [ "${{ matrix.os }}" == "windows-latest" ]; then
+            for file in dist/*.exe; do
+              aws s3api put-object --bucket ${{ secrets.R2_BUCKET }} --key releases/${{ env.VERSION }}/$(basename "$file") --body "$file" --endpoint-url ${{ secrets.R2_ENDPOINT }} --checksum-algorithm CRC32
+            done
+          elif [ "${{ matrix.os }}" == "macos-latest" ]; then
+            for file in dist/*.dmg; do
+              aws s3api put-object --bucket ${{ secrets.R2_BUCKET }} --key releases/${{ env.VERSION }}/$(basename "$file") --body "$file" --endpoint-url ${{ secrets.R2_ENDPOINT }} --checksum-algorithm CRC32
+            done
+          elif [ "${{ matrix.os }}" == "ubuntu-latest" ]; then
+            for file in dist/*.AppImage dist/*.deb; do
+              if [ -f "$file" ]; then
+                aws s3api put-object --bucket ${{ secrets.R2_BUCKET }} --key releases/${{ env.VERSION }}/$(basename "$file") --body "$file" --endpoint-url ${{ secrets.R2_ENDPOINT }} --checksum-algorithm CRC32
+              fi
+            done
+          fi
+        shell: bash
 
-      # - name: install-extra-deps
-      #   if: matrix.os == 'macos-latest'
-      #   run: npm install @rollup/rollup-darwin-arm64
-      # - name: install-extra-deps
-      #   if: matrix.os == 'macos-latest'
-      #   run: npm install dmg-license
-      # - name: build-mac
-      #   if: matrix.os == 'macos-latest'
-      #   run: npm run build:mac
-      # - name: build-win
-      #   if: matrix.os == 'windows-latest'
-      #   run: npm run build:win
-
-      # - name: list-all-dist-files-windows
-      #   if: matrix.os == 'windows-latest'
-      #   run: dir dist
-
-      # - name: list-all-dist-files-mac
-      #   if: matrix.os == 'macos-latest'
-      #   run: ls dist
-
-      # - name: list-all-dist-files-linux
-      #   if: matrix.os == 'ubuntu-latest'
-      #   run: ls dist
-
-      # - name: Extract version from package.json
-      #   id: extract_version
-      #   run: echo "VERSION=$(node -p "require('./package.json').version")" >> $GITHUB_ENV
-      #   shell: bash
-
-      # - name: Create latest.json
-      #   run: |
-      #     echo "{\"version\": \"${{ env.VERSION }}\"}" > latest.json
-      #   shell: bash
-
-      # - name: Upload build artifacts to R2
-      #   run: |
-      #     # Upload only the installation files
-      #     if [ "${{ matrix.os }}" == "windows-latest" ]; then
-      #       for file in dist/*.exe; do
-      #         aws s3api put-object --bucket ${{ secrets.R2_BUCKET }} --key releases/${{ env.VERSION }}/$(basename "$file") --body "$file" --endpoint-url ${{ secrets.R2_ENDPOINT }}  --checksum-algorithm CRC32
-      #       done
-      #     elif [ "${{ matrix.os }}" == "macos-latest" ]; then
-      #       for file in dist/*.dmg; do
-      #         aws s3api put-object --bucket ${{ secrets.R2_BUCKET }} --key releases/${{ env.VERSION }}/$(basename "$file") --body "$file" --endpoint-url ${{ secrets.R2_ENDPOINT }}  --checksum-algorithm CRC32
-      #       done
-      #     elif [ "${{ matrix.os }}" == "ubuntu-latest" ]; then
-      #       for file in dist/*.AppImage dist/*.deb; do
-      #         if [ -f "$file" ]; then
-      #           aws s3api put-object --bucket ${{ secrets.R2_BUCKET }} --key releases/${{ env.VERSION }}/$(basename "$file") --body "$file" --endpoint-url ${{ secrets.R2_ENDPOINT }}  --checksum-algorithm CRC32
-      #         fi
-      #       done
-      #     fi
-      #   shell: bash
-
-      # - name: Upload latest.json to R2
-      #   run: |
-      #     aws s3api put-object --bucket ${{ secrets.R2_BUCKET }} --key latest.json --body latest.json --endpoint-url ${{ secrets.R2_ENDPOINT }}  --checksum-algorithm CRC32
-      #   shell: bash
+      - name: Upload latest.json to R2
+        run: |
+          aws s3api put-object --bucket ${{ secrets.R2_BUCKET }} --key latest.json --body latest.json --endpoint-url ${{ secrets.R2_ENDPOINT }} --checksum-algorithm CRC32
+        shell: bash
