@@ -33,13 +33,13 @@ jobs:
         run: |
           aws configure set aws_access_key_id ${{ secrets.R2_ACCESS_KEY_ID }}
           aws configure set aws_secret_access_key ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          aws configure set region us-east-1
+          aws configure set region auto
           aws configure set output json
         shell: bash
 
       - name: Upload test file to R2
         run: |
-          aws s3 cp test-file.txt s3://${{ secrets.R2_BUCKET }}/test-file.txt --endpoint-url ${{ secrets.R2_ENDPOINT }} --no-verify-ssl
+          aws s3api put-object --bucket ${{ secrets.R2_BUCKET }} --key test.txt --body test-file.txt --endpoint-url ${{ secrets.R2_ENDPOINT }}
         shell: bash
 
       # Commented out for initial testing
@@ -89,15 +89,23 @@ jobs:
       #   run: |
       #     # Upload only the installation files
       #     if [ "${{ matrix.os }}" == "windows-latest" ]; then
-      #       aws s3 cp dist/ s3://${{ secrets.R2_BUCKET }}/releases/${{ env.VERSION }}/ --recursive --exclude "*" --include "*.exe" --endpoint-url ${{ secrets.R2_ENDPOINT }} --no-verify-ssl
+      #       for file in dist/*.exe; do
+      #         aws s3api put-object --bucket ${{ secrets.R2_BUCKET }} --key releases/${{ env.VERSION }}/$(basename "$file") --body "$file" --endpoint-url ${{ secrets.R2_ENDPOINT }}
+      #       done
       #     elif [ "${{ matrix.os }}" == "macos-latest" ]; then
-      #       aws s3 cp dist/ s3://${{ secrets.R2_BUCKET }}/releases/${{ env.VERSION }}/ --recursive --exclude "*" --include "*.dmg" --endpoint-url ${{ secrets.R2_ENDPOINT }} --no-verify-ssl
+      #       for file in dist/*.dmg; do
+      #         aws s3api put-object --bucket ${{ secrets.R2_BUCKET }} --key releases/${{ env.VERSION }}/$(basename "$file") --body "$file" --endpoint-url ${{ secrets.R2_ENDPOINT }}
+      #       done
       #     elif [ "${{ matrix.os }}" == "ubuntu-latest" ]; then
-      #       aws s3 cp dist/ s3://${{ secrets.R2_BUCKET }}/releases/${{ env.VERSION }}/ --recursive --exclude "*" --include "*.AppImage" --include "*.deb" --endpoint-url ${{ secrets.R2_ENDPOINT }} --no-verify-ssl
+      #       for file in dist/*.AppImage dist/*.deb; do
+      #         if [ -f "$file" ]; then
+      #           aws s3api put-object --bucket ${{ secrets.R2_BUCKET }} --key releases/${{ env.VERSION }}/$(basename "$file") --body "$file" --endpoint-url ${{ secrets.R2_ENDPOINT }}
+      #         fi
+      #       done
       #     fi
       #   shell: bash
 
       # - name: Upload latest.json to R2
       #   run: |
-      #     aws s3 cp latest.json s3://${{ secrets.R2_BUCKET }}/latest.json --endpoint-url ${{ secrets.R2_ENDPOINT }} --no-verify-ssl
+      #     aws s3api put-object --bucket ${{ secrets.R2_BUCKET }} --key latest.json --body latest.json --endpoint-url ${{ secrets.R2_ENDPOINT }}
       #   shell: bash
