@@ -39,7 +39,7 @@ jobs:
 
       - name: Upload test file to R2
         run: |
-          aws s3api put-object --bucket ${{ secrets.R2_BUCKET }} --key test.txt --body test-file.txt --endpoint-url ${{ secrets.R2_ENDPOINT }}
+          aws s3api put-object --bucket ${{ secrets.R2_BUCKET }} --key test.txt --body test-file.txt --endpoint-url ${{ secrets.R2_ENDPOINT }}  --checksum-algorithm CRC32
         shell: bash
 
       # Commented out for initial testing
@@ -90,16 +90,16 @@ jobs:
       #     # Upload only the installation files
       #     if [ "${{ matrix.os }}" == "windows-latest" ]; then
       #       for file in dist/*.exe; do
-      #         aws s3api put-object --bucket ${{ secrets.R2_BUCKET }} --key releases/${{ env.VERSION }}/$(basename "$file") --body "$file" --endpoint-url ${{ secrets.R2_ENDPOINT }}
+      #         aws s3api put-object --bucket ${{ secrets.R2_BUCKET }} --key releases/${{ env.VERSION }}/$(basename "$file") --body "$file" --endpoint-url ${{ secrets.R2_ENDPOINT }}  --checksum-algorithm CRC32
       #       done
       #     elif [ "${{ matrix.os }}" == "macos-latest" ]; then
       #       for file in dist/*.dmg; do
-      #         aws s3api put-object --bucket ${{ secrets.R2_BUCKET }} --key releases/${{ env.VERSION }}/$(basename "$file") --body "$file" --endpoint-url ${{ secrets.R2_ENDPOINT }}
+      #         aws s3api put-object --bucket ${{ secrets.R2_BUCKET }} --key releases/${{ env.VERSION }}/$(basename "$file") --body "$file" --endpoint-url ${{ secrets.R2_ENDPOINT }}  --checksum-algorithm CRC32
       #       done
       #     elif [ "${{ matrix.os }}" == "ubuntu-latest" ]; then
       #       for file in dist/*.AppImage dist/*.deb; do
       #         if [ -f "$file" ]; then
-      #           aws s3api put-object --bucket ${{ secrets.R2_BUCKET }} --key releases/${{ env.VERSION }}/$(basename "$file") --body "$file" --endpoint-url ${{ secrets.R2_ENDPOINT }}
+      #           aws s3api put-object --bucket ${{ secrets.R2_BUCKET }} --key releases/${{ env.VERSION }}/$(basename "$file") --body "$file" --endpoint-url ${{ secrets.R2_ENDPOINT }}  --checksum-algorithm CRC32
       #         fi
       #       done
       #     fi
@@ -107,5 +107,5 @@ jobs:
 
       # - name: Upload latest.json to R2
       #   run: |
-      #     aws s3api put-object --bucket ${{ secrets.R2_BUCKET }} --key latest.json --body latest.json --endpoint-url ${{ secrets.R2_ENDPOINT }}
+      #     aws s3api put-object --bucket ${{ secrets.R2_BUCKET }} --key latest.json --body latest.json --endpoint-url ${{ secrets.R2_ENDPOINT }}  --checksum-algorithm CRC32
       #   shell: bash
