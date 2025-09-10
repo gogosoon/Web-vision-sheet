@@ -2,9 +2,14 @@
  * Service for AI-related operations (Main Process)
  * This simulates using an LLM API (like OpenAI) via fetch
  */
-import fs from 'node:fs/promises' // To read screenshot file for sending
-import { tokenStorage } from './tokenStorage' // Import token storage
+import { GoogleGenAI, Type } from '@google/genai'
+import crypto from 'node:crypto'
+import fs from 'node:fs/promises'
 import { CONST_ELECTON_APP } from './const'
+import { CreditTransaction, TransactionType } from './database/entities/CreditTransaction'
+import { DesktopToken } from './database/entities/DesktopToken'
+import { User } from './database/entities/User'
+import { tokenStorage } from './tokenStorage'
 
 // Define the structure for AI prompts, consistent with ExcelHandler
 export interface AiPrompt {
@@ -58,71 +63,90 @@ export class AiService {
     url: string, // Include URL context
     prompts: AiPrompt[]
   ): Promise<string> {
-    // Keep returning string for now to fit into Excel cell easily
-    // Get the token - either from constructor or from storage
-    const token = await this.getToken()
+    // Prefer local Gemini if API key is present; otherwise fall back to web API
+    const geminiKey = process.env.GEMINI_API_KEY || ''
+    if (geminiKey) {
+      try {
+        const imageBuffer = await fs.readFile(screenshotPath)
+        const imageBase64 = imageBuffer.toString('base64')
+        const genAI = new GoogleGenAI({ apiKey: geminiKey })
+        const responseSchema: any = { type: Type.OBJECT, properties: {}, required: [] }
+        for (const p of prompts) {
+          responseSchema.properties[p.columnName] = { type: Type.STRING, description: `Result for prompt: ${p.prompt}` }
+          responseSchema.required.push(p.columnName)
+        }
+        const result = await genAI.models.generateContent({
+          model: 'gemini-2.0-flash',
+          contents: [
+            { inlineData: { mimeType: 'image/png', data: imageBase64 } },
+            { text: `Extract data for prompts: ${JSON.stringify(prompts)} from screenshot of ${url}` }
+          ],
+          config: { responseMimeType: 'application/json', responseSchema }
+        })
+        const text: string = (result as any)?.text || '{}'
+        let parsed: any = {}
+        try { parsed = JSON.parse(text) } catch {}
 
+        // Decrement one credit locally if user exists
+        const token = await this.getToken()
+        if (token) {
+          const tokenRow = await DesktopToken.findOne({ where: { token } })
+          if (tokenRow) {
+            const user = await User.findOne({ where: { id: tokenRow.userId } })
+            if (user && user.credits > 0) {
+              user.credits = user.credits - 1
+              await User.save(user)
+              await CreditTransaction.save({
+                id: cryptoRandomId(),
+                userId: user.id,
+                creditAmount: 1,
+                type: TransactionType.DEBIT,
+                usageDetailsComments: `Used 1 credit for AI screenshot parsing of ${url || 'unknown URL'}`,
+                usageDetailsJsonDump: JSON.stringify({ prompts, website_url: url, timestamp: new Date().toISOString() }),
+                createdAt: new Date(),
+                updatedAt: new Date(),
+                deletedAt: null
+              })
+            }
+          }
+        }
+        return parsed || text
+      } catch (error: any) {
+        // Fall through to web API
+        console.warn('Local Gemini processing failed, falling back to web API:', error?.message || error)
+      }
+    }
+
+    // Fallback to the web API
+    const token = await this.getToken()
     if (!token) {
       return 'Error: AI Service not configured (Auth Token missing)'
     }
-
     try {
-      console.log(
-        `Sending screenshot ${screenshotPath} for ${url} to backend for prompt: "${prompts}"`
-      )
-
-      // Read screenshot as base64
       const imageBuffer = await fs.readFile(screenshotPath)
       const imageBase64 = imageBuffer.toString('base64')
-      const imageMediaType = 'image/png' // Assuming PNG format from webService
-
-      // Construct the request body for the backend API
-      const requestBody = {
-        prompts: prompts,
-        website_url: url,
-        image_data: imageBase64,
-        image_media_type: imageMediaType
-        // Add any other relevant context if needed by the backend
-      }
-
+      const requestBody = { prompts, website_url: url, image_data: imageBase64, image_media_type: 'image/png' }
       const response = await fetch(CONST_ELECTON_APP.API_URL + '/ai/parse-screenshot', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}` // Use the token we retrieved
-        },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(requestBody)
       })
-
       if (!response.ok) {
-        let errorBody = 'Could not read error body'
-        try {
-          errorBody = await response.text()
-        } catch (e) {
-          // Ignore if reading text fails
-        }
-        throw new Error(
-          `Backend API request failed with status ${response.status}: ${errorBody}. Credits won't be deducted for failed rows.`
-        )
+        const errorBody = await response.text().catch(() => 'Could not read error body')
+        throw new Error(`Backend API request failed with status ${response.status}: ${errorBody}. Credits won't be deducted for failed rows.`)
       }
-
       const result = (await response.json()) as BackendApiResponse
-      console.log('Received response from Backend API.')
-
-      // Extract the relevant information from the JSON response
-      if (result.error) {
-        return `AI Error: ${result.error}. Credits won't be deducted for failed rows`
-      }
-      if (result.result) {
-        return result.result
-      }
-
-      // Fallback if the expected fields aren't present
-      return JSON.stringify(result) // Return the whole JSON as a string
+      if (result.error) return `AI Error: ${result.error}. Credits won't be deducted for failed rows`
+      if (result.result) return result.result
+      return JSON.stringify(result)
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error)
-      // Return a specific error message to be placed in the Excel cell
       return `Error processing: ${errorMessage}. Credits won't be deducted for failed rows`
     }
   }
+}
+
+function cryptoRandomId(): string {
+  // simple 32-char hex using Node crypto
+  return crypto.randomBytes(16).toString('hex')
 }

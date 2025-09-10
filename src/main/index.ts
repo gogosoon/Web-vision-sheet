@@ -1,3 +1,4 @@
+import 'reflect-metadata'
 import { app, shell, BrowserWindow, ipcMain, dialog, session } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
@@ -11,6 +12,9 @@ import { ExcelHandler } from './excelService'
 import { WebService } from './webService'
 import { AiService, AiPrompt } from './aiService'
 import { tokenStorage } from './tokenStorage' // Import the token storage
+import { createConnection } from './database/data-source'
+import { DesktopToken } from './database/entities/DesktopToken'
+import { User } from './database/entities/User'
 
 
 
@@ -109,7 +113,7 @@ function createWindow(): void {
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.electron')
 
@@ -119,6 +123,14 @@ app.whenReady().then(() => {
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)
   })
+
+  // Initialize local database
+  try {
+    await createConnection()
+    console.log('Database initialized')
+  } catch (err) {
+    console.error('Failed to initialize database:', err)
+  }
 
   // Create the singleton WebService instance
   webServiceInstance = new WebService()
@@ -158,6 +170,7 @@ function setupIpcHandlers() {
   // Handle token validation
   ipcMain.handle('auth:validate-token', async (_, token) => {
     try {
+      // First try remote (web) validation to not break existing flow
       const response = await fetch(CONST_ELECTON_APP.VALIDATE_TOKEN_ENDPOINT, {
         method: 'POST',
         headers: {
@@ -169,14 +182,40 @@ function setupIpcHandlers() {
       const data = await response.json()
       
       if (!response.ok) {
-        return { 
-          success: false, 
-          error: data.error || 'Failed to validate token' 
+        // Fall back to local validation with TypeORM
+        try {
+          const desktopToken = await DesktopToken.findOne({ where: { token }, relations: ['user'] })
+          if (!desktopToken || (desktopToken.expires && new Date() > new Date(desktopToken.expires))) {
+            return { success: false, error: data.error || 'Failed to validate token' }
+          }
+          await tokenStorage.saveToken(token)
+          return { success: true, data: { user: {
+            id: desktopToken.user.id,
+            name: desktopToken.user.name,
+            email: desktopToken.user.email,
+            image: desktopToken.user.image
+          } } }
+        } catch (fallbackErr) {
+          console.error('Local token validation failed:', fallbackErr)
+          return { success: false, error: data.error || 'Failed to validate token' }
         }
       }
       
       // Token is valid, store it securely
       await tokenStorage.saveToken(token)
+
+      // Persist/update local user for offline use
+      try {
+        const u = data?.user || {}
+        const existing = await User.findOne({ where: { id: u.id } })
+        if (existing) {
+          await User.save({ ...existing, name: u.name ?? existing.name, email: u.email ?? existing.email, image: u.image ?? existing.image })
+        } else if (u?.id) {
+          await User.save({ id: u.id, name: u.name ?? null, email: u.email ?? null, image: u.image ?? null, credits: 50, createdAt: new Date(), updatedAt: new Date() })
+        }
+      } catch (persistErr) {
+        console.warn('Failed to persist user locally:', persistErr)
+      }
       
       // Record login time
       fetch(`${CONST_ELECTON_APP.API_URL}/auth/record-login`, {
@@ -185,8 +224,18 @@ function setupIpcHandlers() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         }
-      }).catch(err => {
+      }).catch(async err => {
         console.error('Failed to record login time:', err)
+        // Best-effort local record
+        try {
+          const desktopToken = await DesktopToken.findOne({ where: { token } })
+          if (desktopToken) {
+            desktopToken.logged_in_at = new Date()
+            await desktopToken.save()
+          }
+        } catch (e) {
+          console.warn('Failed to update local login time:', e)
+        }
       })
       
       return { 
@@ -215,9 +264,16 @@ function setupIpcHandlers() {
       const data = await response.json()
       
       if (!response.ok) {
-        return { 
-          success: false, 
-          error: data.error || 'Failed to get user profile' 
+        // Fallback to local user profile
+        try {
+          const desktopToken = await DesktopToken.findOne({ where: { token } })
+          if (!desktopToken) return { success: false, error: data.error || 'Failed to get user profile' }
+          const user = await User.findOne({ where: { id: desktopToken.userId } })
+          if (!user) return { success: false, error: data.error || 'Failed to get user profile' }
+          return { success: true, data: { user: { id: user.id, name: user.name, email: user.email, image: user.image, credits: user.credits } } }
+        } catch (fallbackErr) {
+          console.error('Local profile fetch failed:', fallbackErr)
+          return { success: false, error: data.error || 'Failed to get user profile' }
         }
       }
       

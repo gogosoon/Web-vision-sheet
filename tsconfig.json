@@ -3,6 +3,13 @@
   "references": [{ "path": "./tsconfig.node.json" }, { "path": "./tsconfig.web.json" }],
   "compilerOptions": {
     "baseUrl": ".",
+    "target":"ESNext",
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "strictPropertyInitialization":false,
+    "skipLibCheck":true,
+    "strict":false,
+    "noUnusedLocals": false,
     "paths": {
       "@/*": ["./src/*"]
     }

@@ -97,7 +97,7 @@ export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
       // Initial state
-      currentScreen: 'login',
+      currentScreen: 'home',
       excelFile: null,
       processingStats: defaultProcessingStats,
       auth: defaultAuthState,
