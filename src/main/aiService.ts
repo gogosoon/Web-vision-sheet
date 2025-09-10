@@ -61,10 +61,11 @@ export class AiService {
   async processScreenshot(
     screenshotPath: string,
     url: string, // Include URL context
-    prompts: AiPrompt[]
+    prompts: AiPrompt[],
+    apiKey?: string
   ): Promise<string> {
     // Prefer local Gemini if API key is present; otherwise fall back to web API
-    const geminiKey = process.env.GEMINI_API_KEY || ''
+    const geminiKey = apiKey || process.env.GEMINI_API_KEY || ''
     if (geminiKey) {
       try {
         const imageBuffer = await fs.readFile(screenshotPath)

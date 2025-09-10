@@ -1,13 +1,15 @@
-import React from 'react';
-import { UserProfile } from './UserProfile';
-import { useAppStore } from '@renderer/lib/store';
+import React from 'react'
+import { UserProfile } from './UserProfile'
+import { useAppStore } from '@renderer/lib/store'
+import { Settings } from 'lucide-react'
+import { Button } from './button'
 
 interface BaseWrapperProps {
-  children: React.ReactNode;
+  children: React.ReactNode
 }
 
 const BaseWrapper: React.FC<BaseWrapperProps> = ({ children }) => {
-    const { currentScreen, auth } = useAppStore()
+  const { currentScreen, auth, setCurrentScreen } = useAppStore()
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
       {/* Header */}
@@ -16,9 +18,13 @@ const BaseWrapper: React.FC<BaseWrapperProps> = ({ children }) => {
           <h1 className="text-xl font-bold text-indigo-600">webvisionsheet.com</h1>
           {/* <span className="ml-2 text-xs px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full">Desktop</span> */}
         </div>
-        {auth.authenticated && (
-          <UserProfile />
+        {currentScreen !== 'settings' && (
+          <Button variant="outline" onClick={() => setCurrentScreen('settings')}>
+            <Settings />
+          </Button>
         )}
+
+        {auth.authenticated && <UserProfile />}
       </header>
 
       {/* Main Content Area */}
@@ -31,7 +37,7 @@ const BaseWrapper: React.FC<BaseWrapperProps> = ({ children }) => {
         © {new Date().getFullYear()} webvisionsheet.com
       </footer>
     </div>
-  );
-};
+  )
+}
 
-export default BaseWrapper; 
+export default BaseWrapper

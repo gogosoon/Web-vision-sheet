@@ -8,11 +8,15 @@ import BaseWrapper from '@/components/BaseWrapper'
 
 // Import the AiPrompt type if it's defined centrally, or define it here
 // Assuming it might be available via store or a types file
-import type { AiPrompt } from '@/lib/store'; 
+import type { AiPrompt } from '@/lib/store'
+import { getGoogleApiKey } from '@renderer/lib/utils'
 
 const HomeScreen: React.FC = () => {
-  const { setExcelFile, setCurrentScreen, updateExcelFile, addAiPrompt, removeAiPrompt } = useAppStore()
-  const [uploadStep, setUploadStep] = useState<'initial' | 'column-selection' | 'ai-prompts'>('initial')
+  const { setExcelFile, setCurrentScreen, updateExcelFile, addAiPrompt, removeAiPrompt } =
+    useAppStore()
+  const [uploadStep, setUploadStep] = useState<'initial' | 'column-selection' | 'ai-prompts'>(
+    'initial'
+  )
   const [error, setError] = useState<string | null>(null)
   const [newPrompt, setNewPrompt] = useState({ columnName: '', prompt: '' })
   const [loading, setLoading] = useState<boolean>(false)
@@ -22,7 +26,7 @@ const HomeScreen: React.FC = () => {
     try {
       setLoading(true)
       const result = await window.api.browser.launch()
-      
+
       if (result.success) {
         toast.success('Browser launched successfully')
       } else {
@@ -37,97 +41,101 @@ const HomeScreen: React.FC = () => {
     }
   }
 
-  const onDrop = useCallback(async (acceptedFiles: File[]) => {
-    const file = acceptedFiles[0]
-    if (!file) return
+  const onDrop = useCallback(
+    async (acceptedFiles: File[]) => {
+      const file = acceptedFiles[0]
+      if (!file) return
 
-    try {
-      setLoading(true)
-      setError(null)
-      toast.loading('Creating workspace and analyzing file...', { id: 'upload-toast' })
+      try {
+        setLoading(true)
+        setError(null)
+        toast.loading('Creating workspace and analyzing file...', { id: 'upload-toast' })
 
-      // 1. Create workspace and save the original file via IPC
-      const workspaceDirPath = await window.api.path.dirname(file.path || file.name) // Might need adjustment based on File object
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
-      const workspaceName = `workspace-${timestamp}`
-      
-      // Create the main workspace directory
-      const createWorkspaceResult = await window.api.workspace.create(workspaceName)
-      if (!createWorkspaceResult.success || !createWorkspaceResult.path) {
+        // 1. Create workspace and save the original file via IPC
+        const workspaceDirPath = await window.api.path.dirname(file.path || file.name) // Might need adjustment based on File object
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+        const workspaceName = `workspace-${timestamp}`
+
+        // Create the main workspace directory
+        const createWorkspaceResult = await window.api.workspace.create(workspaceName)
+        if (!createWorkspaceResult.success || !createWorkspaceResult.path) {
           throw new Error(createWorkspaceResult.error || 'Failed to create workspace directory')
-      }
-      const workspacePath = createWorkspaceResult.path;
-      
-      // Convert File to Uint8Array to pass through IPC
-      const arrayBuffer = await file.arrayBuffer()
-      const uint8Array = new Uint8Array(arrayBuffer)
-      
-      // Save the original file to the workspace
-      const inputFileName = 'input.xlsx' // Standardized name
-      const saveFileResult = await window.api.workspace.saveFile(
+        }
+        const workspacePath = createWorkspaceResult.path
+
+        // Convert File to Uint8Array to pass through IPC
+        const arrayBuffer = await file.arrayBuffer()
+        const uint8Array = new Uint8Array(arrayBuffer)
+
+        // Save the original file to the workspace
+        const inputFileName = 'input.xlsx' // Standardized name
+        const saveFileResult = await window.api.workspace.saveFile(
           workspacePath,
           inputFileName,
           uint8Array
-      )
-      
-      if (!saveFileResult.success || !saveFileResult.path) {
-        throw new Error(saveFileResult.error || 'Failed to save file to workspace')
-      }
-      const savedFilePath = saveFileResult.path;
-      
-      // Save initial metadata (optional, but good practice)
-      const metadata = {
-        originalFileName: file.name,
-        uploadTime: new Date().toISOString(),
-        workspacePath: workspacePath,
-        savedInputPath: savedFilePath
-      }
-      await window.api.workspace.saveFile(
-        workspacePath,
-        'data.json',
-        JSON.stringify(metadata, null, 2)
-      )
+        )
 
-      // 2. Get Excel file info via IPC
-      // Ensure the path passed to getFileInfo is the *actual saved path* in the workspace
-      const excelInfoResult = await window.api.excel.getFileInfo(savedFilePath);
+        if (!saveFileResult.success || !saveFileResult.path) {
+          throw new Error(saveFileResult.error || 'Failed to save file to workspace')
+        }
+        const savedFilePath = saveFileResult.path
 
-      if (!excelInfoResult.success || !excelInfoResult.data) {
-        throw new Error(excelInfoResult.error || 'Failed to read Excel file information.')
+        // Save initial metadata (optional, but good practice)
+        const metadata = {
+          originalFileName: file.name,
+          uploadTime: new Date().toISOString(),
+          workspacePath: workspacePath,
+          savedInputPath: savedFilePath
+        }
+        await window.api.workspace.saveFile(
+          workspacePath,
+          'data.json',
+          JSON.stringify(metadata, null, 2)
+        )
+
+        // 2. Get Excel file info via IPC
+        // Ensure the path passed to getFileInfo is the *actual saved path* in the workspace
+        const excelInfoResult = await window.api.excel.getFileInfo(savedFilePath)
+
+        if (!excelInfoResult.success || !excelInfoResult.data) {
+          throw new Error(excelInfoResult.error || 'Failed to read Excel file information.')
+        }
+
+        const { sheetNames, columns, totalRows } = excelInfoResult.data
+
+        // 3. Update application state (Zustand store)
+        setExcelFile({
+          fileName: file.name, // Original file name for display
+          filePath: savedFilePath, // Path *inside the workspace* for processing
+          workspacePath: workspacePath, // Store workspace path
+          sheetNames,
+          selectedSheet: sheetNames[0], // Default to first sheet
+          websiteColumn: null, // Reset selection
+          columns,
+          totalRows,
+          aiPrompts: [] // Reset prompts
+        })
+
+        setUploadStep('column-selection')
+        toast.success('File uploaded and analyzed', { id: 'upload-toast' })
+      } catch (err: unknown) {
+        console.error('Error during file upload:', err)
+        let errorMessage =
+          'File upload failed. Please ensure it is a valid .xlsx file and try again.'
+        if (err instanceof Error) {
+          errorMessage = err.message
+        }
+        setError(errorMessage)
+        toast.error(errorMessage, { id: 'upload-toast' })
+        // Reset state if needed
+        setExcelFile(null)
+        setUploadStep('initial')
+      } finally {
+        setLoading(false)
       }
-      
-      const { sheetNames, columns, totalRows } = excelInfoResult.data;
-
-      // 3. Update application state (Zustand store)
-      setExcelFile({
-        fileName: file.name,         // Original file name for display
-        filePath: savedFilePath,     // Path *inside the workspace* for processing
-        workspacePath: workspacePath, // Store workspace path
-        sheetNames,
-        selectedSheet: sheetNames[0], // Default to first sheet
-        websiteColumn: null,         // Reset selection
-        columns,
-        totalRows,
-        aiPrompts: []                // Reset prompts
-      })
-
-      setUploadStep('column-selection')
-      toast.success('File uploaded and analyzed', { id: 'upload-toast' })
-    } catch (err: unknown) {
-      console.error('Error during file upload:', err)
-      let errorMessage = 'File upload failed. Please ensure it is a valid .xlsx file and try again.'
-      if (err instanceof Error) {
-        errorMessage = err.message
-      }
-      setError(errorMessage)
-      toast.error(errorMessage, { id: 'upload-toast' })
-      // Reset state if needed
-      setExcelFile(null);
-      setUploadStep('initial');
-    } finally {
-      setLoading(false)
-    }
-  }, [setExcelFile])
+    },
+    [setExcelFile]
+  )
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -146,20 +154,20 @@ const HomeScreen: React.FC = () => {
   const handleAddPrompt = () => {
     if (newPrompt.columnName.trim() && newPrompt.prompt.trim()) {
       // Basic validation: Check if column name already exists
-      if (excelFile?.aiPrompts.some(p => p.columnName === newPrompt.columnName.trim())) {
-          toast.error('Column name already exists. Please use a unique name.');
-          return;
+      if (excelFile?.aiPrompts.some((p) => p.columnName === newPrompt.columnName.trim())) {
+        toast.error('Column name already exists. Please use a unique name.')
+        return
       }
-      addAiPrompt({ 
+      addAiPrompt({
         columnName: newPrompt.columnName.trim(),
         prompt: newPrompt.prompt.trim()
-      });
-      setNewPrompt({ columnName: '', prompt: '' });
+      })
+      setNewPrompt({ columnName: '', prompt: '' })
     }
   }
 
   const handleRemovePrompt = (columnName: string) => {
-      removeAiPrompt(columnName);
+    removeAiPrompt(columnName)
   }
 
   const startProcessing = async () => {
@@ -169,47 +177,48 @@ const HomeScreen: React.FC = () => {
       return
     }
     if (excelFile.aiPrompts.length === 0) {
-       setError('Please add at least one AI prompt before starting.');
-       toast.error('Please add at least one AI prompt.');
-       return;
+      setError('Please add at least one AI prompt before starting.')
+      toast.error('Please add at least one AI prompt.')
+      return
     }
 
-    setError(null); // Clear previous errors
-    setLoading(true);
-    toast.loading('Saving configuration...', { id: 'config-toast' });
+    setError(null) // Clear previous errors
+    setLoading(true)
+    toast.loading('Saving configuration...', { id: 'config-toast' })
 
     try {
       // Prepare config data
+      const apiKey = getGoogleApiKey() ?? undefined
       const configData = {
         originalFilePath: excelFile.filePath, // Use the path within the workspace
         workspacePath: excelFile.workspacePath,
         websiteColumnName: excelFile.websiteColumn,
-        aiPrompts: excelFile.aiPrompts
-      };
-
-      // Save config via IPC
-      const saveResult = await window.api.config.save(configData);
-
-      if (saveResult.success) {
-        toast.success('Configuration saved. Starting processing...', { id: 'config-toast' });
-        // Trigger the main process to start
-        window.api.processing.start();
-
-        setCurrentScreen('processing');
-      } else {
-        throw new Error(saveResult.error || 'Failed to save configuration.');
+        aiPrompts: excelFile.aiPrompts,
+        apiKey: apiKey
       }
 
+      // Save config via IPC
+      const saveResult = await window.api.config.save(configData)
+
+      if (saveResult.success) {
+        toast.success('Configuration saved. Starting processing...', { id: 'config-toast' })
+        // Trigger the main process to start
+        window.api.processing.start()
+
+        setCurrentScreen('processing')
+      } else {
+        throw new Error(saveResult.error || 'Failed to save configuration.')
+      }
     } catch (err: unknown) {
-        console.error('Error saving configuration:', err);
-        let errorMessage = 'Failed to save configuration.'
-        if (err instanceof Error) {
-            errorMessage = err.message;
-        }
-        setError(errorMessage);
-        toast.error(errorMessage, { id: 'config-toast' });
+      console.error('Error saving configuration:', err)
+      let errorMessage = 'Failed to save configuration.'
+      if (err instanceof Error) {
+        errorMessage = err.message
+      }
+      setError(errorMessage)
+      toast.error(errorMessage, { id: 'config-toast' })
     } finally {
-        setLoading(false);
+      setLoading(false)
     }
   }
 
@@ -227,7 +236,9 @@ const HomeScreen: React.FC = () => {
             <Chrome size={18} />
             Open Browser for Login (if needed)
           </Button>
-           <p className="text-xs text-slate-500 mt-1">Some websites might require you to be logged in. Open the browser to log in first.</p>
+          <p className="text-xs text-slate-500 mt-1">
+            Some websites might require you to be logged in. Open the browser to log in first.
+          </p>
         </div>
 
         {/* Line separator */}
@@ -260,8 +271,8 @@ const HomeScreen: React.FC = () => {
                   {isDragActive
                     ? 'Drop the Excel file here'
                     : loading
-                    ? 'Processing...'
-                    : 'Drag & drop Excel file here, or click to select'}
+                      ? 'Processing...'
+                      : 'Drag & drop Excel file here, or click to select'}
                 </p>
                 <p className="text-sm text-slate-500">Supports .xlsx files</p>
               </div>
@@ -286,7 +297,9 @@ const HomeScreen: React.FC = () => {
               <div className="grid grid-cols-3 gap-4 mb-6 text-sm">
                 <div>
                   <p className="text-gray-500">Filename</p>
-                  <p className="font-medium truncate" title={excelFile.fileName}>{excelFile.fileName}</p>
+                  <p className="font-medium truncate" title={excelFile.fileName}>
+                    {excelFile.fileName}
+                  </p>
                 </div>
                 <div>
                   <p className="text-gray-500">Sheet</p>
@@ -310,9 +323,13 @@ const HomeScreen: React.FC = () => {
                 className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
                 disabled={loading}
               >
-                <option value="" disabled>-- Select Column --</option>
+                <option value="" disabled>
+                  -- Select Column --
+                </option>
                 {excelFile.columns.map((col) => (
-                  <option key={col} value={col}>{col}</option>
+                  <option key={col} value={col}>
+                    {col}
+                  </option>
                 ))}
               </select>
             </div>
@@ -328,18 +345,30 @@ const HomeScreen: React.FC = () => {
               <div className="space-y-2 mb-4">
                 {excelFile.aiPrompts.length > 0 ? (
                   excelFile.aiPrompts.map((prompt) => (
-                    <div key={prompt.columnName} className="flex items-center justify-between p-2 bg-gray-100 rounded-md">
+                    <div
+                      key={prompt.columnName}
+                      className="flex items-center justify-between p-2 bg-gray-100 rounded-md"
+                    >
                       <div className="text-sm">
                         <span className="font-medium">{prompt.columnName}:</span>
-                        <span className="text-gray-600 ml-2 truncate" title={prompt.prompt}>{prompt.prompt}</span>
+                        <span className="text-gray-600 ml-2 truncate" title={prompt.prompt}>
+                          {prompt.prompt}
+                        </span>
                       </div>
-                      <Button variant="ghost" size="icon" onClick={() => handleRemovePrompt(prompt.columnName)} disabled={loading}>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleRemovePrompt(prompt.columnName)}
+                        disabled={loading}
+                      >
                         <X size={16} />
                       </Button>
                     </div>
                   ))
                 ) : (
-                  <p className="text-sm text-slate-500 text-center py-2">No AI prompts added yet.</p>
+                  <p className="text-sm text-slate-500 text-center py-2">
+                    No AI prompts added yet.
+                  </p>
                 )}
               </div>
 
@@ -361,8 +390,8 @@ const HomeScreen: React.FC = () => {
                   className="flex-1 p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
                   disabled={loading}
                 />
-                <Button 
-                  onClick={handleAddPrompt} 
+                <Button
+                  onClick={handleAddPrompt}
                   disabled={loading || !newPrompt.columnName || !newPrompt.prompt}
                   className="whitespace-nowrap"
                 >
@@ -378,31 +407,26 @@ const HomeScreen: React.FC = () => {
                 <span>{error}</span>
               </div>
             )}
-            
+
             {/* Continue Button */}
             <div className="mt-auto pt-2 text-center">
-               <Button 
-                  onClick={startProcessing} 
-                  disabled={loading || !excelFile.websiteColumn || excelFile.aiPrompts.length === 0}
-                  size="lg"
-                >
-                  Start Processing
+              <Button
+                onClick={startProcessing}
+                disabled={loading || !excelFile.websiteColumn || excelFile.aiPrompts.length === 0}
+                size="lg"
+              >
+                Start Processing
               </Button>
             </div>
             <div className="relative flex justify-center text-sm">
-            <span className="px-3 bg-white text-gray-500">or</span>
-          </div>
-          <div className="mt-auto pt-2 text-center">
-            <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => setUploadStep('initial')}
-                  
-                >
-                  <FileSpreadsheet size={14} />
-                  Select Different File
-                </Button>
-                </div>
+              <span className="px-3 bg-white text-gray-500">or</span>
+            </div>
+            <div className="mt-auto pt-2 text-center">
+              <Button variant="outline" size="sm" onClick={() => setUploadStep('initial')}>
+                <FileSpreadsheet size={14} />
+                Select Different File
+              </Button>
+            </div>
           </div>
         )}
       </div>
@@ -410,4 +434,4 @@ const HomeScreen: React.FC = () => {
   )
 }
 
-export default HomeScreen 
+export default HomeScreen

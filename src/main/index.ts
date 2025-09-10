@@ -33,6 +33,7 @@ interface AppConfig {
   websiteColumnName: string
   aiPrompts: AiPrompt[]
   outputFileName?: string // Optional: specify output name
+  apiKey?: string
 }
 
 // Create the workspace directory if it doesn't exist
@@ -561,7 +562,8 @@ function setupIpcHandlers() {
         outputFilePath,
         screenshotsDir,
         webServiceInstance, // Use shared instance
-        aiService
+        aiService,
+        config.apiKey
       )
 
       console.log('Processing finished successfully.')

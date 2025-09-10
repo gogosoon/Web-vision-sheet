@@ -88,7 +88,8 @@ export class ExcelHandler { // Renamed class slightly
     screenshotsDir: string,
     // onProgress: ProgressCallback // Replaced with internal sendProgress
     webService: WebService, // Pass instances
-    aiService: AiService   // Pass instances
+    aiService: AiService,  // Pass instances
+    apiKey?: string
   ): Promise<{filePath: string, logs: string[]}> {
     // Load the original file
     const workbook = new Excel.Workbook()
@@ -183,7 +184,8 @@ export class ExcelHandler { // Renamed class slightly
         const aiResult = await aiService.processScreenshot(
           screenshotPath,
           websiteUrl,
-          aiPrompts
+          aiPrompts,
+          apiKey
         )
         
         for (let promptIndex = 0; promptIndex < aiPrompts.length; promptIndex++) {

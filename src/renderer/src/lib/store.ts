@@ -47,7 +47,7 @@ export interface AuthState {
 
 interface AppState {
   // App state
-  currentScreen: 'home' | 'processing' | 'results' | 'login'
+  currentScreen: 'home' | 'processing' | 'results' | 'login' | 'settings'
   
   // Auth state
   auth: AuthState
@@ -57,7 +57,7 @@ interface AppState {
   processingStats: ProcessingStats
   
   // Actions
-  setCurrentScreen: (screen: 'home' | 'processing' | 'results' | 'login') => void
+  setCurrentScreen: (screen: 'home' | 'processing' | 'results' | 'login' | 'settings') => void
   setExcelFile: (file: ExcelFile | null) => void
   updateExcelFile: (partialFile: Partial<ExcelFile>) => void
   updateProcessingStats: (stats: Partial<ProcessingStats> | ((prevStats: ProcessingStats) => Partial<ProcessingStats>)) => void
