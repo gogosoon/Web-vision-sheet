@@ -3,7 +3,7 @@ export const WEB_APP_URL = import.meta.env.VITE_WEB_APP_URL // Replace with your
 export const API_URL = `${WEB_APP_URL}/api`
 
 // Custom protocol for deep linking
-export const APP_PROTOCOL = 'spreadsheetflow'
+export const APP_PROTOCOL = 'webvisionsheet'
 
 // Auth-related URLs
 export const DESKTOP_LOGIN_URL = `${WEB_APP_URL}/desktop-login`

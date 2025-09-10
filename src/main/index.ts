@@ -38,7 +38,7 @@ interface AppConfig {
 // Create the workspace directory if it doesn't exist
 function getWorkspacePath() {
   const documentsPath = path.join(homedir(), 'Documents')
-  const workspacePath = path.join(documentsPath, 'SpreadSheetFlow Workspace')
+  const workspacePath = path.join(documentsPath, 'webvisionsheet Workspace')
 
   if (!fs.existsSync(workspacePath)) {
     try {

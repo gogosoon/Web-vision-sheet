@@ -1,5 +1,5 @@
-appId: com.spreadsheetflow.app
-productName: spreadsheetflow
+appId: com.webvisionsheet.app
+productName: webvisionsheet
 directories:
   buildResources: build
 files:
@@ -12,7 +12,7 @@ files:
 asarUnpack:
   - resources/**
 win:
-  executableName: spreadsheetflow
+  executableName: webvisionsheet
 nsis:
   artifactName: ${name}-${version}-setup.${ext}
   shortcutName: ${productName}
@@ -32,11 +32,11 @@ linux:
   target:
     - AppImage
     - deb
-  maintainer: spreadsheetflow.com
+  maintainer: webvisionsheet.com
   category: Utility
 appImage:
   artifactName: ${name}-${version}.${ext}
 npmRebuild: false
 publish:
   provider: generic
-  url: https://spreadsheetflow.com/download
+  url: https://webvisionsheet.com/download

@@ -1,8 +1,8 @@
-# SpreadsheetFlow Desktop Application
+# webvisionsheet Desktop Application
 
 ## Project Overview
 
-SpreadsheetFlow is an Electron-based desktop application that automates the enrichment of Excel spreadsheets with AI-generated insights from website screenshots. The main workflow is:
+webvisionsheet is an Electron-based desktop application that automates the enrichment of Excel spreadsheets with AI-generated insights from website screenshots. The main workflow is:
 
 1. Users upload an Excel file containing website URLs
 2. The app takes screenshots of these websites using Puppeteer
@@ -21,7 +21,7 @@ SpreadsheetFlow is an Electron-based desktop application that automates the enri
 ## Project Structure
 
 ```
-spreadsheetflow-desktop-app/
+webvisionsheet-desktop-app/
 ├── src/
 │   ├── main/                 # Electron main process
 │   │   ├── index.ts          # Main application entry point

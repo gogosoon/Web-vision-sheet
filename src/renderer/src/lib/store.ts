@@ -270,7 +270,7 @@ export const useAppStore = create<AppState>()(
       }
     }),
     {
-      name: 'spreadsheetflow-storage',
+      name: 'webvisionsheet-storage',
       partialize: (state) => ({ 
         auth: { token: state.auth.token }
       })

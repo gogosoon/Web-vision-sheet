@@ -1,4 +1,4 @@
-# spreadsheetflow
+# webvisionsheet
 
 ## Development
 
@@ -92,7 +92,7 @@ npm run build:linux  # Linux
 git tag v1.2.3
 ```
 
-3. Push the tag to github https://github.com/gogosoon/Spread-sheet-flow 
+3. Push the tag to github https://github.com/gogosoon/Web-vision-sheet 
 ```
 git push github v1.2.3
 ```
