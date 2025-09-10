@@ -1,27 +1,18 @@
-import 'reflect-metadata'
-import { app, shell, BrowserWindow, ipcMain, dialog, session } from 'electron'
-import { join } from 'path'
-import { electronApp, optimizer, is } from '@electron-toolkit/utils'
-import icon from '../../resources/icon.png?asset'
+import { electronApp, is, optimizer } from '@electron-toolkit/utils'
+import { app, BrowserWindow, dialog, ipcMain, session, shell } from 'electron'
 import fs from 'fs'
-import path from 'path'
 import { homedir } from 'os'
+import path, { join } from 'path'
+import 'reflect-metadata'
+import icon from '../../resources/icon.png?asset'
 
 // Import our main process services
+import { AiPrompt, AiService } from './aiService'
 import { ExcelHandler } from './excelService'
 import { WebService } from './webService'
-import { AiService, AiPrompt } from './aiService'
-import { tokenStorage } from './tokenStorage' // Import the token storage
-import { createConnection } from './database/data-source'
-import { DesktopToken } from './database/entities/DesktopToken'
-import { User } from './database/entities/User'
-
-
 
 // Import node-fetch
-import fetch from 'node-fetch'
 import { CONST_ELECTON_APP } from './const'
-
 
 let mainWindow: BrowserWindow | null = null // Keep track of the main window
 let webServiceInstance: WebService | null = null // Keep track of WebService instance
@@ -75,11 +66,11 @@ function createWindow(): void {
         ...details.responseHeaders,
         'Content-Security-Policy': [
           `default-src 'self' ${CONST_ELECTON_APP.WEB_APP_URL} ${CONST_ELECTON_APP.API_URL};` +
-          `connect-src 'self' ${CONST_ELECTON_APP.WEB_APP_URL} ${CONST_ELECTON_APP.API_URL};` +
-          `script-src 'self' 'unsafe-inline' 'unsafe-eval';` +
-          `style-src 'self' 'unsafe-inline';` +
-          `img-src 'self' data: ${CONST_ELECTON_APP.WEB_APP_URL} ${CONST_ELECTON_APP.API_URL};` +
-          `font-src 'self' data:;`
+            `connect-src 'self' ${CONST_ELECTON_APP.WEB_APP_URL} ${CONST_ELECTON_APP.API_URL};` +
+            `script-src 'self' 'unsafe-inline' 'unsafe-eval';` +
+            `style-src 'self' 'unsafe-inline';` +
+            `img-src 'self' data: ${CONST_ELECTON_APP.WEB_APP_URL} ${CONST_ELECTON_APP.API_URL};` +
+            `font-src 'self' data:;`
         ]
       }
     })
@@ -125,14 +116,6 @@ app.whenReady().then(async () => {
     optimizer.watchWindowShortcuts(window)
   })
 
-  // Initialize local database
-  try {
-    await createConnection()
-    console.log('Database initialized')
-  } catch (err) {
-    console.error('Failed to initialize database:', err)
-  }
-
   // Create the singleton WebService instance
   webServiceInstance = new WebService()
 
@@ -163,133 +146,6 @@ app.on('window-all-closed', () => {
 
 // IPC handlers setup
 function setupIpcHandlers() {
-  // IPC Handlers for authentication
-  ipcMain.handle('auth:check-protocol-registration', () => {
-    return app.isDefaultProtocolClient(CONST_ELECTON_APP.APP_PROTOCOL)
-  })
-  
-  // Handle token validation
-  ipcMain.handle('auth:validate-token', async (_, token) => {
-    try {
-      // First try remote (web) validation to not break existing flow
-      const response = await fetch(CONST_ELECTON_APP.VALIDATE_TOKEN_ENDPOINT, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        }
-      })
-      
-      const data = await response.json()
-      
-      if (!response.ok) {
-        // Fall back to local validation with TypeORM
-        try {
-          const desktopToken = await DesktopToken.findOne({ where: { token }, relations: ['user'] })
-          if (!desktopToken || (desktopToken.expires && new Date() > new Date(desktopToken.expires))) {
-            return { success: false, error: data.error || 'Failed to validate token' }
-          }
-          await tokenStorage.saveToken(token)
-          return { success: true, data: { user: {
-            id: desktopToken.user.id,
-            name: desktopToken.user.name,
-            email: desktopToken.user.email,
-            image: desktopToken.user.image
-          } } }
-        } catch (fallbackErr) {
-          console.error('Local token validation failed:', fallbackErr)
-          return { success: false, error: data.error || 'Failed to validate token' }
-        }
-      }
-      
-      // Token is valid, store it securely
-      await tokenStorage.saveToken(token)
-
-      // Persist/update local user for offline use
-      try {
-        const u = data?.user || {}
-        const existing = await User.findOne({ where: { id: u.id } })
-        if (existing) {
-          await User.save({ ...existing, name: u.name ?? existing.name, email: u.email ?? existing.email, image: u.image ?? existing.image })
-        } else if (u?.id) {
-          await User.save({ id: u.id, name: u.name ?? null, email: u.email ?? null, image: u.image ?? null, credits: 50, createdAt: new Date(), updatedAt: new Date() })
-        }
-      } catch (persistErr) {
-        console.warn('Failed to persist user locally:', persistErr)
-      }
-      
-      // Record login time
-      fetch(`${CONST_ELECTON_APP.API_URL}/auth/record-login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        }
-      }).catch(async err => {
-        console.error('Failed to record login time:', err)
-        // Best-effort local record
-        try {
-          const desktopToken = await DesktopToken.findOne({ where: { token } })
-          if (desktopToken) {
-            desktopToken.logged_in_at = new Date()
-            await desktopToken.save()
-          }
-        } catch (e) {
-          console.warn('Failed to update local login time:', e)
-        }
-      })
-      
-      return { 
-        success: true, 
-        data 
-      }
-    } catch (error) {
-      console.error('Error validating token:', error)
-      return { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Network error occurred'
-      }
-    }
-  })
-
-  // Handle getting user profile
-  ipcMain.handle('auth:get-user-profile', async (_, token) => {
-    try {
-      const response = await fetch(`${CONST_ELECTON_APP.API_URL}/profile`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      })
-      
-      const data = await response.json()
-      
-      if (!response.ok) {
-        // Fallback to local user profile
-        try {
-          const desktopToken = await DesktopToken.findOne({ where: { token } })
-          if (!desktopToken) return { success: false, error: data.error || 'Failed to get user profile' }
-          const user = await User.findOne({ where: { id: desktopToken.userId } })
-          if (!user) return { success: false, error: data.error || 'Failed to get user profile' }
-          return { success: true, data: { user: { id: user.id, name: user.name, email: user.email, image: user.image, credits: user.credits } } }
-        } catch (fallbackErr) {
-          console.error('Local profile fetch failed:', fallbackErr)
-          return { success: false, error: data.error || 'Failed to get user profile' }
-        }
-      }
-      
-      return { 
-        success: true, 
-        data 
-      }
-    } catch (error) {
-      console.error('Error getting user profile:', error)
-      return { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Network error occurred'
-      }
-    }
-  })
   // Open file dialog
   ipcMain.handle('dialog:openFile', async () => {
     const { canceled, filePaths } = await dialog.showOpenDialog({
@@ -439,7 +295,6 @@ function setupIpcHandlers() {
     }
   })
 
-  
   // Read Excel file info (using moved service)
   ipcMain.handle('excel:getFileInfo', async (_, filePath) => {
     console.log(`IPC excel:getFileInfo called for path: ${filePath}`)
@@ -529,11 +384,10 @@ function setupIpcHandlers() {
       const config: AppConfig = JSON.parse(configDataStr)
 
       // Get stored token
-      const storedToken = await tokenStorage.getToken()
 
       // Create instances of services
       const excelHandler = new ExcelHandler(currentMainWindow) // Pass window for progress updates
-      const aiService = new AiService(storedToken || undefined) // Use stored token with null check
+      const aiService = new AiService() // Use stored token with null check
       // webServiceInstance is already created and managed globally
       if (!webServiceInstance) {
         throw new Error('WebService instance not available')
@@ -576,7 +430,7 @@ function setupIpcHandlers() {
       currentMainWindow.webContents.send('processingError', message)
     } finally {
       // Optional: Close browser after processing is fully complete?
-      await webServiceInstance?.closeBrowser();
+      await webServiceInstance?.closeBrowser()
     }
   })
 
@@ -600,50 +454,6 @@ function setupIpcHandlers() {
         errorMessage = error.message
       }
       return { success: false, error: errorMessage }
-    }
-  })
-
-  // Add new token management IPC handlers
-  ipcMain.handle('auth:getStoredToken', async () => {
-    try {
-      const token = await tokenStorage.getToken()
-      return { success: true, token }
-    } catch (error) {
-      console.error('Error retrieving stored token:', error)
-      return { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Unknown error retrieving token'
-      }
-    }
-  })
-
-  ipcMain.handle('auth:storeToken', async (_, token) => {
-    if (!token) {
-      return { success: false, error: 'No token provided' }
-    }
-    
-    try {
-      await tokenStorage.saveToken(token)
-      return { success: true }
-    } catch (error) {
-      console.error('Error storing token:', error)
-      return { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Unknown error storing token' 
-      }
-    }
-  })
-
-  ipcMain.handle('auth:clearToken', async () => {
-    try {
-      await tokenStorage.clearToken()
-      return { success: true }
-    } catch (error) {
-      console.error('Error clearing token:', error)
-      return { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Unknown error clearing token'
-      }
     }
   })
 }

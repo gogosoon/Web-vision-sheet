@@ -118,4 +118,4 @@ export class TokenStorage {
 }
 
 // Export a singleton instance
-export const tokenStorage = new TokenStorage(); 
+const tokenStorage = new TokenStorage(); 

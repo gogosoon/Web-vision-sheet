@@ -20,7 +20,14 @@ interface ExcelFile {
 }
 
 export interface ProcessingStats {
-  currentStep: 'idle' | 'starting' | 'taking-screenshots' | 'processing-screenshots' | 'saving-results' | 'completed' | 'error'
+  currentStep:
+    | 'idle'
+    | 'starting'
+    | 'taking-screenshots'
+    | 'processing-screenshots'
+    | 'saving-results'
+    | 'completed'
+    | 'error'
   currentRowIndex: number
   totalRows: number
   currentLogMessage: string
@@ -48,29 +55,22 @@ export interface AuthState {
 interface AppState {
   // App state
   currentScreen: 'home' | 'processing' | 'results' | 'login' | 'settings'
-  
-  // Auth state
-  auth: AuthState
-  
+
   // File state
   excelFile: ExcelFile | null
   processingStats: ProcessingStats
-  
+
   // Actions
   setCurrentScreen: (screen: 'home' | 'processing' | 'results' | 'login' | 'settings') => void
   setExcelFile: (file: ExcelFile | null) => void
   updateExcelFile: (partialFile: Partial<ExcelFile>) => void
-  updateProcessingStats: (stats: Partial<ProcessingStats> | ((prevStats: ProcessingStats) => Partial<ProcessingStats>)) => void
+  updateProcessingStats: (
+    stats: Partial<ProcessingStats> | ((prevStats: ProcessingStats) => Partial<ProcessingStats>)
+  ) => void
   addAiPrompt: (prompt: AiPrompt) => void
   removeAiPrompt: (columnName: string) => void
   updateAiPrompt: (columnName: string, prompt: Partial<AiPrompt>) => void
   resetState: () => void
-  
-  // Auth actions
-  setAuth: (auth: Partial<AuthState>) => void
-  login: (token: string) => Promise<void>
-  refreshUserProfile: () => Promise<void>
-  logout: () => void
 }
 
 // Default processing stats
@@ -100,180 +100,70 @@ export const useAppStore = create<AppState>()(
       currentScreen: 'home',
       excelFile: null,
       processingStats: defaultProcessingStats,
-      auth: defaultAuthState,
-      
+
       // Actions
       setCurrentScreen: (screen) => set({ currentScreen: screen }),
-      
-      setExcelFile: (file) => set({ 
-          excelFile: file, 
-          processingStats: defaultProcessingStats 
-      }),
-      
-      updateExcelFile: (partialFile) => 
+
+      setExcelFile: (file) =>
+        set({
+          excelFile: file,
+          processingStats: defaultProcessingStats
+        }),
+
+      updateExcelFile: (partialFile) =>
         set((state) => ({
           excelFile: state.excelFile ? { ...state.excelFile, ...partialFile } : null
         })),
-      
-      updateProcessingStats: (statsUpdate) => 
+
+      updateProcessingStats: (statsUpdate) =>
         set((state) => ({
-          processingStats: typeof statsUpdate === 'function' 
-            ? { ...state.processingStats, ...statsUpdate(state.processingStats) } 
-            : { ...state.processingStats, ...statsUpdate }
+          processingStats:
+            typeof statsUpdate === 'function'
+              ? { ...state.processingStats, ...statsUpdate(state.processingStats) }
+              : { ...state.processingStats, ...statsUpdate }
         })),
-      
-      addAiPrompt: (prompt) => 
+
+      addAiPrompt: (prompt) =>
         set((state) => ({
-          excelFile: state.excelFile 
-            ? { 
-                ...state.excelFile, 
-                aiPrompts: [...state.excelFile.aiPrompts, prompt] 
-              } 
+          excelFile: state.excelFile
+            ? {
+                ...state.excelFile,
+                aiPrompts: [...state.excelFile.aiPrompts, prompt]
+              }
             : null
         })),
-      
-      removeAiPrompt: (columnName) => 
+
+      removeAiPrompt: (columnName) =>
         set((state) => ({
-          excelFile: state.excelFile 
-            ? { 
-                ...state.excelFile, 
-                aiPrompts: state.excelFile.aiPrompts.filter((p) => p.columnName !== columnName) 
-              } 
+          excelFile: state.excelFile
+            ? {
+                ...state.excelFile,
+                aiPrompts: state.excelFile.aiPrompts.filter((p) => p.columnName !== columnName)
+              }
             : null
         })),
-      
-      updateAiPrompt: (columnName, promptUpdate) => 
+
+      updateAiPrompt: (columnName, promptUpdate) =>
         set((state) => ({
-          excelFile: state.excelFile 
-            ? { 
-                ...state.excelFile, 
-                aiPrompts: state.excelFile.aiPrompts.map((p) => 
+          excelFile: state.excelFile
+            ? {
+                ...state.excelFile,
+                aiPrompts: state.excelFile.aiPrompts.map((p) =>
                   p.columnName === columnName ? { ...p, ...promptUpdate } : p
-                ) 
-              } 
+                )
+              }
             : null
         })),
-      
-      resetState: () => set({
-        currentScreen: 'home',
-        excelFile: null,
-        processingStats: defaultProcessingStats
-      }),
-      
-      // Auth actions
-      setAuth: (auth) => 
-        set((state) => ({
-          auth: { ...state.auth, ...auth }
-        })),
-        
-      login: async (token) => {
-        try {
-          set((state) => ({ 
-            auth: { ...state.auth, isLoading: true, error: null } 
-          }))
-          
-          // Use IPC for network requests to avoid CSP issues
-          const response = await window.api.auth.validateToken(token)
-          
-          if (!response.success) {
-            throw new Error(response.error || 'Failed to validate token')
-          }
-          
-          const userData = response.data?.user
-          
-          if (!userData) {
-            throw new Error('Invalid user data received')
-          }
-          
-          set({
-            auth: {
-              authenticated: true,
-              token,
-              user: {
-                id: userData.id,
-                name: userData.name,
-                email: userData.email,
-                image: userData.image,
-                credits: userData.credits || 0
-              },
-              error: null,
-              isLoading: false
-            },
-            currentScreen: 'home'
-          })
-        } catch (error) {
-          set((state) => ({
-            auth: {
-              ...state.auth,
-              authenticated: false,
-              token: null,
-              user: null,
-              error: error instanceof Error ? error.message : 'An unknown error occurred',
-              isLoading: false
-            }
-          }))
-        }
-      },
-      
-      refreshUserProfile: async () => {
-        const { token } = get().auth
-        if (!token) return
-        
-        try {
-          set((state) => ({ 
-            auth: { ...state.auth, isLoading: true, error: null } 
-          }))
-          
-          const response = await window.api.auth.getUserProfile(token)
-          
-          if (!response.success) {
-            throw new Error(response.error || 'Failed to refresh profile')
-          }
-          
-          const userData = response.data?.user
-          
-          if (!userData) {
-            throw new Error('Invalid user data received')
-          }
-          
-          set((state) => ({
-            auth: {
-              ...state.auth,
-              user: {
-                id: userData.id,
-                name: userData.name,
-                email: userData.email,
-                image: userData.image,
-                credits: userData.credits || 0
-              },
-              error: null,
-              isLoading: false
-            }
-          }))
-        } catch (error) {
-          set((state) => ({
-            auth: {
-              ...state.auth,
-              error: error instanceof Error ? error.message : 'Failed to refresh profile',
-              isLoading: false
-            }
-          }))
-          throw error
-        }
-      },
-      
-      logout: () => {
+
+      resetState: () =>
         set({
-          auth: defaultAuthState,
-          currentScreen: 'login'
+          currentScreen: 'home',
+          excelFile: null,
+          processingStats: defaultProcessingStats
         })
-      }
     }),
     {
-      name: 'webvisionsheet-storage',
-      partialize: (state) => ({ 
-        auth: { token: state.auth.token }
-      })
+      name: 'webvisionsheet-storage'
     }
   )
-) 
+)

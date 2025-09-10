@@ -3,39 +3,42 @@ import { electronAPI } from '@electron-toolkit/preload'
 
 // Define types for callbacks and expected data
 interface ExcelFileInfo {
-  sheetNames: string[];
-  columns: string[];
-  totalRows: number;
+  sheetNames: string[]
+  columns: string[]
+  totalRows: number
 }
 
 interface ProgressStats {
-  currentRowIndex: number;
-  totalRows: number;
-  currentLogMessage: string;
+  currentRowIndex: number
+  totalRows: number
+  currentLogMessage: string
 }
 
 interface ProcessingCompletePayload {
-  outputPath: string;
+  outputPath: string
 }
 
 interface IpcResponse<T = any> {
-  success: boolean;
-  data?: T;
-  error?: string;
-  path?: string; // Used by some handlers like saveFile, createWorkspace
+  success: boolean
+  data?: T
+  error?: string
+  path?: string // Used by some handlers like saveFile, createWorkspace
 }
 
 // Custom APIs for renderer
 const api = {
   dialog: {
     openFile: (): Promise<string | null> => ipcRenderer.invoke('dialog:openFile'),
-    saveFile: (options: { defaultPath: string, filters: any[] }): Promise<string | null> => ipcRenderer.invoke('dialog:saveFile', options)
+    saveFile: (options: { defaultPath: string; filters: any[] }): Promise<string | null> =>
+      ipcRenderer.invoke('dialog:saveFile', options)
   },
   file: {
-    copyFile: (source: string, destination: string): Promise<IpcResponse> => ipcRenderer.invoke('file:copy', source, destination)
+    copyFile: (source: string, destination: string): Promise<IpcResponse> =>
+      ipcRenderer.invoke('file:copy', source, destination)
   },
   shell: {
-    openFolder: (folderPath: string): Promise<void> => ipcRenderer.invoke('shell:openFolder', folderPath)
+    openFolder: (folderPath: string): Promise<void> =>
+      ipcRenderer.invoke('shell:openFolder', folderPath)
   },
   app: {
     getWorkspacePath: (): Promise<string> => ipcRenderer.invoke('app:getWorkspacePath')
@@ -46,17 +49,32 @@ const api = {
     dirname: (filePath: string): Promise<string> => ipcRenderer.invoke('path:dirname', filePath)
   },
   workspace: {
-    create: (workspaceName: string): Promise<IpcResponse> => ipcRenderer.invoke('workspace:create', workspaceName),
-    saveFile: (workspacePath: string, fileName: string, content: string | Uint8Array | ArrayBufferView): Promise<IpcResponse> => {
+    create: (workspaceName: string): Promise<IpcResponse> =>
+      ipcRenderer.invoke('workspace:create', workspaceName),
+    saveFile: (
+      workspacePath: string,
+      fileName: string,
+      content: string | Uint8Array | ArrayBufferView
+    ): Promise<IpcResponse> => {
       // Keep existing logic to handle content types
       if (typeof content === 'string' || content instanceof Uint8Array) {
         return ipcRenderer.invoke('workspace:saveFile', workspacePath, fileName, content)
       } else if (ArrayBuffer.isView(content)) {
-        return ipcRenderer.invoke('workspace:saveFile', workspacePath, fileName, new Uint8Array(content.buffer))
+        return ipcRenderer.invoke(
+          'workspace:saveFile',
+          workspacePath,
+          fileName,
+          new Uint8Array(content.buffer)
+        )
       } else {
-         // Should not happen based on type hint, but stringify as fallback
-        return ipcRenderer.invoke('workspace:saveFile', workspacePath, fileName, JSON.stringify(content))
-      } 
+        // Should not happen based on type hint, but stringify as fallback
+        return ipcRenderer.invoke(
+          'workspace:saveFile',
+          workspacePath,
+          fileName,
+          JSON.stringify(content)
+        )
+      }
     }
   },
   browser: {
@@ -65,7 +83,8 @@ const api = {
 
   // --- NEW APIs ---
   excel: {
-    getFileInfo: (filePath: string): Promise<IpcResponse<ExcelFileInfo>> => ipcRenderer.invoke('excel:getFileInfo', filePath)
+    getFileInfo: (filePath: string): Promise<IpcResponse<ExcelFileInfo>> =>
+      ipcRenderer.invoke('excel:getFileInfo', filePath)
   },
   config: {
     // Assuming AppConfig structure is defined/imported in renderer too
@@ -75,59 +94,44 @@ const api = {
     start: (): void => ipcRenderer.send('processing:start'),
     // Listener for progress updates
     onProgress: (callback: (stats: ProgressStats) => void): (() => void) => {
-      const handler = (_event: IpcRendererEvent, stats: ProgressStats) => callback(stats);
-      ipcRenderer.on('processingProgress', handler);
+      const handler = (_event: IpcRendererEvent, stats: ProgressStats) => callback(stats)
+      ipcRenderer.on('processingProgress', handler)
       // Return a cleanup function
-      return () => ipcRenderer.removeListener('processingProgress', handler);
+      return () => ipcRenderer.removeListener('processingProgress', handler)
     },
     // Listener for completion
     onComplete: (callback: (payload: ProcessingCompletePayload) => void): (() => void) => {
-      const handler = (_event: IpcRendererEvent, payload: ProcessingCompletePayload) => callback(payload);
-      ipcRenderer.on('processingComplete', handler);
+      const handler = (_event: IpcRendererEvent, payload: ProcessingCompletePayload) =>
+        callback(payload)
+      ipcRenderer.on('processingComplete', handler)
       // Return a cleanup function
-      return () => ipcRenderer.removeListener('processingComplete', handler);
+      return () => ipcRenderer.removeListener('processingComplete', handler)
     },
     // Listener for errors
     onError: (callback: (errorMessage: string) => void): (() => void) => {
-      const handler = (_event: IpcRendererEvent, errorMessage: string) => callback(errorMessage);
-      ipcRenderer.on('processingError', handler);
+      const handler = (_event: IpcRendererEvent, errorMessage: string) => callback(errorMessage)
+      ipcRenderer.on('processingError', handler)
       // Return a cleanup function
-      return () => ipcRenderer.removeListener('processingError', handler);
+      return () => ipcRenderer.removeListener('processingError', handler)
     },
     // Function to remove all listeners at once (e.g., on component unmount)
     removeAllListeners: (): void => {
-        ipcRenderer.removeAllListeners('processingProgress');
-        ipcRenderer.removeAllListeners('processingComplete');
-        ipcRenderer.removeAllListeners('processingError');
-    }
-  },
-
-  // Auth related methods
-  auth: {
-    // Check if the auth protocol is registered
-    checkProtocolRegistration: (): Promise<boolean> => {
-      return ipcRenderer.invoke('auth:check-protocol-registration');
-    },
-    // Validate token with the backend
-    validateToken: (token: string): Promise<IpcResponse<{user: any}>> => {
-      return ipcRenderer.invoke('auth:validate-token', token);
-    },
-    // Get user profile
-    getUserProfile: (token: string): Promise<IpcResponse<{user: any}>> => {
-      return ipcRenderer.invoke('auth:get-user-profile', token);
+      ipcRenderer.removeAllListeners('processingProgress')
+      ipcRenderer.removeAllListeners('processingComplete')
+      ipcRenderer.removeAllListeners('processingError')
     }
   },
 
   // IPC sender
   ipcRenderer: {
     send: (channel: string, ...args: any[]): void => {
-      ipcRenderer.send(channel, ...args);
+      ipcRenderer.send(channel, ...args)
     },
     on: (channel: string, listener: (event: IpcRendererEvent, ...args: any[]) => void): void => {
-      ipcRenderer.on(channel, listener);
+      ipcRenderer.on(channel, listener)
     },
     removeAllListeners: (channel: string): void => {
-      ipcRenderer.removeAllListeners(channel);
+      ipcRenderer.removeAllListeners(channel)
     }
   }
 }
