@@ -34,7 +34,7 @@ export class WebService {
     if (!this.browser || !this.browser.isConnected()) {
       console.log(`Launching Puppeteer browser (Headed: ${headedMode})...`)
       try {
-        let chromePath;
+        let chromePath
         try {
           chromePath = findChrome()
         } catch (error) {
@@ -43,9 +43,11 @@ export class WebService {
             'Chrome Not Found',
             'Google Chrome is not installed in your system. Please install Google Chrome and try again.'
           )
-          throw new Error('Google Chrome is not installed in your system. Please install Google Chrome and try again.')
+          throw new Error(
+            'Google Chrome is not installed in your system. Please install Google Chrome and try again.'
+          )
         }
-        
+
         this.browser = await puppeteer.launch({
           headless: !headedMode, // <-- Use headedMode flag
           userDataDir: this.profilePath, // <-- Use the profile path
@@ -103,7 +105,7 @@ export class WebService {
         console.error(`Error waiting for network idle:`, error)
       }
       console.log(`Taking screenshot of ${url}...`)
-      await page.screenshot({ path: outputPath, fullPage: true }) // Take full page screenshot
+      await page.screenshot({ path: outputPath as any, fullPage: true }) // Take full page screenshot
 
       console.log(`Screenshot saved to ${outputPath}`)
       return outputPath

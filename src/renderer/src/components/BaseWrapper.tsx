@@ -1,7 +1,6 @@
-import React from 'react'
-import { UserProfile } from './UserProfile'
 import { useAppStore } from '@renderer/lib/store'
 import { Settings } from 'lucide-react'
+import React from 'react'
 import { Button } from './button'
 
 interface BaseWrapperProps {
@@ -9,7 +8,7 @@ interface BaseWrapperProps {
 }
 
 const BaseWrapper: React.FC<BaseWrapperProps> = ({ children }) => {
-  const { currentScreen, auth, setCurrentScreen } = useAppStore()
+  const { currentScreen, setCurrentScreen } = useAppStore()
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
       {/* Header */}
@@ -23,8 +22,6 @@ const BaseWrapper: React.FC<BaseWrapperProps> = ({ children }) => {
             <Settings />
           </Button>
         )}
-
-        {auth.authenticated && <UserProfile />}
       </header>
 
       {/* Main Content Area */}

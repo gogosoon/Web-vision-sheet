@@ -27,7 +27,7 @@ export class AiService {
     url: string, // Include URL context
     prompts: AiPrompt[],
     apiKey?: string
-  ): Promise<string> {
+  ) {
     // Prefer local Gemini if API key is present; otherwise fall back to web API
     const geminiKey = apiKey || process.env.GEMINI_API_KEY || ''
     

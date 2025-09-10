@@ -95,7 +95,7 @@ const defaultAuthState: AuthState = {
 
 export const useAppStore = create<AppState>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       // Initial state
       currentScreen: 'home',
       excelFile: null,
