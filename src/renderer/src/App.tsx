@@ -1,11 +1,9 @@
 import { useEffect } from 'react'
+import { Toaster } from 'react-hot-toast'
 import { useAppStore } from './lib/store'
 import HomeScreen from './screens/HomeScreen'
 import ProcessingScreen from './screens/ProcessingScreen'
 import ResultsScreen from './screens/ResultsScreen'
-import LoginScreen from './screens/LoginScreen'
-import { UserProfile } from './components/UserProfile'
-import { Toaster } from 'react-hot-toast'
 
 function App(): React.JSX.Element {
   const { currentScreen, auth } = useAppStore()
