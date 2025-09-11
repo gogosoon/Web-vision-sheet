@@ -14,6 +14,22 @@ Create a `.env` file in the root directory with the following variables:
 GEMINI_API_KEY=api_key (optional)
 ```
 
+To get a Gemini API key:
+
+1. Sign in to [Google AI Studio](https://aistudio.google.com).
+   
+   ![Get API Key](.github/assets/get-api-key.png)
+
+2. Click Create API key.
+   
+   ![Create API Key](.github/assets/create-api-key.png)
+
+3. Copy your API key.
+   
+   ![Copy API Key](.github/assets/copy-api-key.png)
+
+
+
 Replace the values with your actual database configuration.
 
 ### Important note for mac
