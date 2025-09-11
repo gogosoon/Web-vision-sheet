@@ -11,8 +11,6 @@ import { AiPrompt, AiService } from './aiService'
 import { ExcelHandler } from './excelService'
 import { WebService } from './webService'
 
-// Import node-fetch
-import { CONST_ELECTON_APP } from './const'
 
 let mainWindow: BrowserWindow | null = null // Keep track of the main window
 let webServiceInstance: WebService | null = null // Keep track of WebService instance
@@ -65,11 +63,8 @@ function createWindow(): void {
       responseHeaders: {
         ...details.responseHeaders,
         'Content-Security-Policy': [
-          `default-src 'self' ${CONST_ELECTON_APP.WEB_APP_URL} ${CONST_ELECTON_APP.API_URL};` +
-            `connect-src 'self' ${CONST_ELECTON_APP.WEB_APP_URL} ${CONST_ELECTON_APP.API_URL};` +
             `script-src 'self' 'unsafe-inline' 'unsafe-eval';` +
             `style-src 'self' 'unsafe-inline';` +
-            `img-src 'self' data: ${CONST_ELECTON_APP.WEB_APP_URL} ${CONST_ELECTON_APP.API_URL};` +
             `font-src 'self' data:;`
         ]
       }

@@ -1,6 +1,5 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { VALIDATE_TOKEN_ENDPOINT } from './constants'
 
 export interface AiPrompt {
   columnName: string

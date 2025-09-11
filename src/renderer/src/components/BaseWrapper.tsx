@@ -14,7 +14,7 @@ const BaseWrapper: React.FC<BaseWrapperProps> = ({ children }) => {
       {/* Header */}
       <header className="py-3 px-6 bg-white shadow-sm flex justify-between items-center border-b border-gray-200">
         <div className="flex items-center">
-          <h1 className="text-xl font-bold text-indigo-600">webvisionsheet.com</h1>
+          <h1 className="text-xl font-bold text-indigo-600">Web Vision Sheet</h1>
           {/* <span className="ml-2 text-xs px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full">Desktop</span> */}
         </div>
         {currentScreen !== 'settings' && (
@@ -31,7 +31,7 @@ const BaseWrapper: React.FC<BaseWrapperProps> = ({ children }) => {
 
       {/* Footer */}
       <footer className="py-2 px-6 text-center text-xs text-gray-500 border-t border-gray-200 bg-white">
-        © {new Date().getFullYear()} webvisionsheet.com
+        © {new Date().getFullYear()} webvisionsheet
       </footer>
     </div>
   )
