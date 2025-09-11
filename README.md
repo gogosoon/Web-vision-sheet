@@ -29,9 +29,6 @@ To get a Gemini API key:
    ![Copy API Key](.github/assets/copy-api-key.png)
 
 
-
-Replace the values with your actual database configuration.
-
 ### Important note for mac
 
 Please install this and make sure you using v22 node version
